@@ -1,8 +1,9 @@
 use aiken/builtin
 use aiken/dict
 use aiken/list
-use aiken/transaction.{
-  Input, Mint, Output, OutputReference, ScriptContext, Spend, Transaction,
+use cardano/assets.{PolicyId}
+use cardano/transaction.{
+  Input, Mint, Output, OutputReference, Spend, Transaction,
 }
 use aiken/transaction/credential.{Address, ScriptCredential}
 use aiken/transaction/value
@@ -14,14 +15,13 @@ use amm_dex_v2/types.{
 }
 use amm_dex_v2/utils
 
-validator(
+validator authen_minting_policy (
   // @out_ref is a Reference of an Unspent Transaction Output,
   // which will only be spent on `MintFactoryAuthen` redeemer to make sure this redeemer can only be called once
   out_ref: OutputReference,
 ) {
-  fn validate_authen(redeemer: AuthenRedeemer, context: ScriptContext) {
-    let ScriptContext { transaction, purpose } = context
-    expect Mint(authen_policy_id) = purpose
+  // fn validate_authen
+  mint(redeemer: AuthenRedeemer, authen_policy_id: PolicyId, transaction: Transaction) {
     when redeemer is {
       CreatePool -> {
         let Transaction { inputs, mint, redeemers, .. } = transaction
