@@ -1,6 +1,7 @@
 use aiken/builtin
-use aiken/collection/dict.{Dict}
+use aiken/collection/dict
 use aiken/collection/list
+use aiken/collection/pairs
 use aiken/crypto.{DataHash, VerificationKeyHash, sha3_256}
 use aiken/interval.{Finite, Interval, IntervalBound}
 use aiken/primitive/bytearray
@@ -9,8 +10,10 @@ use amm_dex_v2/types.{
   OAMWithdrawScript, OrderAuthorizationMethod, PAMSignature, PAMSpendScript,
   PAMWithdrawScript, PoolAuthorizationMethod, SortedValueList,
 }
-use cardano/address.{Address, Script, StakeCredential}
-use cardano/assets.{AssetName, PolicyId, Value, ada_asset_name, ada_policy_id}
+use cardano/address.{Address, Credential, Script}
+use cardano/assets.{
+  AssetName, Lovelace, PolicyId, Value, ada_asset_name, ada_policy_id,
+}
 use cardano/transaction.{
   Datum, DatumHash, InlineDatum, Input, NoDatum, Output, ValidityRange,
 }
@@ -493,19 +496,14 @@ pub fn value_to_list(val: Value) -> SortedValueList {
   val
     |> assets.to_dict
     |> dict.to_pairs
-    |> list.map(
-        fn(e: Pair<ByteArray, Dict<AssetName, Int>>) {
-          let Pair(k, v) = e
-          (k, dict.to_pairs(v))
-        },
-      )
+    |> pairs.map(fn(_k, v) { dict.to_pairs(v) })
 }
 
 // Pool Author can be one of 3 authorization methods
 pub fn authorize_pool_license(
   author: PoolAuthorizationMethod,
   transaction_inputs: List<Input>,
-  withdrawals: Dict<StakeCredential, Int>,
+  withdrawals: Pairs<Credential, Lovelace>,
   extra_signatories: List<VerificationKeyHash>,
 ) -> Bool {
   when author is {
@@ -526,7 +524,8 @@ pub fn authorize_pool_license(
       )
     }
     // If the authorization method is WithdrawScript, validate the presence of a withdrawal in the transaction.
-    PAMWithdrawScript(script_hash) -> dict.has_key(withdrawals, script_hash)
+    PAMWithdrawScript(script_hash) ->
+      pairs.has_key(withdrawals, Script(script_hash))
   }
 }
 
@@ -534,7 +533,7 @@ pub fn authorize_pool_license(
 pub fn authorize_order_license(
   author: OrderAuthorizationMethod,
   transaction_inputs: List<Input>,
-  withdrawals: Dict<StakeCredential, Int>,
+  withdrawals: Pairs<Credential, Lovelace>,
   extra_signatories: List<VerificationKeyHash>,
   transaction_mint: Value,
 ) -> Bool {
@@ -556,7 +555,8 @@ pub fn authorize_order_license(
       )
     }
     // If the authorization method is WithdrawScript, validate the presence of a withdrawal in the transaction.
-    OAMWithdrawScript(script_hash) -> dict.has_key(withdrawals, script_hash)
+    OAMWithdrawScript(script_hash) ->
+      pairs.has_key(withdrawals, Script(script_hash))
     // If the authorization method is MintScript, ensure the minted tokens meet the policy ID requirements and have a non-zero quantity.
     OAMMintScript(script_hash) -> {
       expect [Pair(_, fst_token_quantity), ..] =

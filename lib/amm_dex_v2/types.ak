@@ -1,6 +1,6 @@
 use aiken/collection/dict.{Dict}
 use aiken/crypto.{DataHash, ScriptHash, VerificationKeyHash}
-use cardano/address.{Address, StakeCredential}
+use cardano/address.{Address, Credential}
 use cardano/assets.{AssetName, PolicyId}
 
 pub type CustomDatumHash =
@@ -13,7 +13,7 @@ pub type PubKeyHash =
   VerificationKeyHash
 
 pub type SortedValueList =
-  List<(PolicyId, Pairs<AssetName, Int>)>
+  Pairs<ByteArray, Pairs<ByteArray, Int>>
 
 pub type Asset {
   policy_id: PolicyId,
@@ -25,7 +25,7 @@ pub type DatumMap =
 
 pub type PoolDatum {
   // Stake Credential of `Pool Batching` validator
-  pool_batching_stake_credential: StakeCredential,
+  pool_batching_stake_credential: Credential,
   // The Pool's Asset A
   asset_a: Asset,
   // The Pool's Asset B

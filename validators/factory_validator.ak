@@ -1,32 +1,32 @@
 use aiken/builtin
-use aiken/list
-use aiken/transaction.{Input, Output, ScriptContext, Spend, Transaction}
-use aiken/transaction/credential.{Address, ScriptCredential, StakeCredential}
-use aiken/transaction/value.{PolicyId, ada_asset_name, ada_policy_id}
+use aiken/collection/list
 use amm_dex_v2/math
 use amm_dex_v2/pool_validation
 use amm_dex_v2/types.{Asset, FactoryDatum, FactoryRedeemer, PoolDatum}
 use amm_dex_v2/utils
+use cardano/address.{Address, Credential, Script}
+use cardano/assets.{PolicyId, ada_asset_name, ada_policy_id}
+use cardano/transaction.{Input, Output, OutputReference, Transaction}
 
-validator(
+validator factory_validator(
   // The PolicyID of Authen Minting Policy
   authen_policy_id: PolicyId,
   // Address of Pool Contract
   // This address has Pool Validator Hash as Payment Credential and Stake Credential is controlled by Minswap Labs
   pool_address: Address,
   // Stake Credential of Pool Batching Contract
-  pool_batching_stake_credential: StakeCredential,
+  pool_batching_stake_credential: Credential,
 ) {
-  fn validate_factory(
-    datum: FactoryDatum,
+  // fn validate_factory
+  spend(
+    datum: Option<FactoryDatum>,
     redeemer: FactoryRedeemer,
-    context: ScriptContext,
+    factory_ref: OutputReference,
+    transaction: Transaction,
   ) {
-    let ScriptContext { transaction, purpose } = context
-    expect Spend(factory_ref) = purpose
     let Transaction { inputs, mint, outputs, .. } = transaction
     let FactoryRedeemer { asset_a, asset_b } = redeemer
-    let FactoryDatum { head: current_head, tail: current_tail } = datum
+    expect Some(FactoryDatum { head: current_head, tail: current_tail }) = datum
     let Asset { policy_id: asset_a_policy_id, asset_name: asset_a_asset_name } =
       asset_a
     let Asset { policy_id: asset_b_policy_id, asset_name: asset_b_asset_name } =
@@ -77,14 +77,15 @@ validator(
 
     // Transaction must have a Factory Asset in the Spending Script
     expect
-      value.without_lovelace(factory_input_value) == value.from_asset(
+      assets.without_lovelace(factory_input_value) == assets.from_asset(
         authen_policy_id,
         utils.factory_auth_asset_name,
         1,
       )
     // validate that there are only 2 Factory UTxOs in Transaction Outputs, 
     // they must contain single legitimate Factory NFT Token. 
-    expect [factory_output_1, factory_output_2] =
+    expect [factory_output_1,
+      factory_output_2] =
       list.filter(
         outputs,
         fn(output) {
@@ -95,7 +96,7 @@ validator(
           } = output
           and {
             factory_payment_credential == payment_cred,
-            value.without_lovelace(out_value) == value.from_asset(
+            assets.without_lovelace(out_value) == assets.from_asset(
               authen_policy_id,
               utils.factory_auth_asset_name,
               1,
@@ -134,9 +135,9 @@ validator(
           let Address { payment_credential: out_addr_payment_credential, .. } =
             out_addr
           when out_addr_payment_credential is {
-            ScriptCredential(_) -> and {
+            Script(_) -> and {
                 pool_address == out_addr,
-                value.quantity_of(
+                assets.quantity_of(
                   out_value,
                   authen_policy_id,
                   utils.pool_auth_asset_name,
@@ -163,7 +164,7 @@ validator(
       allow_dynamic_fee: pool_allow_dynamic_fee,
     } = pool_out_datum
     let estimated_amount_a =
-      value.quantity_of(
+      assets.quantity_of(
         pool_output_value,
         asset_a_policy_id,
         asset_a_asset_name,
@@ -175,7 +176,7 @@ validator(
         estimated_amount_a
       }
     let amount_b =
-      value.quantity_of(
+      assets.quantity_of(
         pool_output_value,
         asset_b_policy_id,
         asset_b_asset_name,
@@ -184,12 +185,12 @@ validator(
     let remaining_liquidity =
       9223372036854775807 - ( total_liquidity - utils.default_burn_liquidity )
     let expected_pool_out_value =
-      value.zero()
-        |> value.add(ada_policy_id, ada_asset_name, utils.min_pool_ada)
-        |> value.add(asset_a_policy_id, asset_a_asset_name, amount_a)
-        |> value.add(asset_b_policy_id, asset_b_asset_name, amount_b)
-        |> value.add(authen_policy_id, lp_asset_name, remaining_liquidity)
-        |> value.add(authen_policy_id, utils.pool_auth_asset_name, 1)
+      assets.zero
+        |> assets.add(ada_policy_id, ada_asset_name, utils.min_pool_ada)
+        |> assets.add(asset_a_policy_id, asset_a_asset_name, amount_a)
+        |> assets.add(asset_b_policy_id, asset_b_asset_name, amount_b)
+        |> assets.add(authen_policy_id, lp_asset_name, remaining_liquidity)
+        |> assets.add(authen_policy_id, utils.pool_auth_asset_name, 1)
     and {
       // stake_credential must be the same with configured credential
       pool_stake_credential == pool_batching_stake_credential,
@@ -218,7 +219,7 @@ validator(
       // fee_sharing_numerator_opt must be empty
       pool_datum_fee_sharing_numerator_opt == None,
       // Transaction must mint necessary assets
-      value.from_minted_value(mint) == pool_validation.get_pool_creation_expected_mint(
+      mint == pool_validation.get_pool_creation_expected_mint(
         authen_policy_id: authen_policy_id,
         lp_asset_name: lp_asset_name,
       ),
@@ -230,5 +231,9 @@ validator(
       // - 3 ADA (required ADA for an UTxO)
       expected_pool_out_value == pool_output_value,
     }
+  }
+
+  else(_) {
+    fail
   }
 }
