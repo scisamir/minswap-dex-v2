@@ -1,0 +1,173 @@
+Dex initialization:
+    21807dae524d3ad8ca8bf763258f43a6c808ab89714afce06858cd9f5b8a64b2
+
+
+Pool Creation:
+    e6892e76ffd8ae2793341d6ab3cecf43229224d74372252c06b5b8f76754276a
+
+REGISTER STAKE CREDENTIALS:
+    cf4cace507152020b2ee32a9faa58153c3e62d02d18ad6c16885015330cd1baa
+
+Create Order:
+    08da8828f8aef6203c499967c96842e9c1d3dc8c8307fcc603e0e9d450675320 (Buy)
+    3deea26af2aefa5102726dbd5d8cb06750df90dd836bf38f9d74703b92a210be (Buy)
+    cc46d95b4dd392d18842274d380f10fa5bbb959f83f655d18b2749925a8617b8 (Sell)
+    cab914aca4fb11f8ed0d736915cc77a756a0b3abd8baebb2a39c734b60849c2e (Sell)
+Process Order (Batching):
+    ---------------------------------------------------------------- (Buy)
+    872f3b8727eaf63f6a62c5b40ec13da5c147be9b31fcd4ea43a0a635c52ece1c (Buy)
+    ---------------------------------------------------------------- (Sell)
+    ab30bf2b53b1c9fd063d63a2407b4b7e1a4e95506680e5697d87c282603c2279 (Sell)
+Cancel order:
+    690a35ba129fbd5da2c95692875d7c103ffe6c2e6c84c3f5ba52d1c843a1a329 (Buy)
+    ---------------------------------------------------------------- (Buy)
+    5e3180fe619a96c2945cde7150ad30565b8a5a07ff2a3bb878d3383dcf4a5512 (Sell)
+    ---------------------------------------------------------------- (Sell)
+
+
+
+
+Minswap contracts - Verbose mode
+Cip113 (Util) Contracts - Normal mode
+
+
+// Restarting (For batching transaction)
+- Replace dex.. txhash and idx with new utxo
+- dex Init
+- save authen minting validator -> replace hash in `create_pool.ts`
+- replace cip113 realUSD utxo tx hash in `setup.ts`
+- create pool
+- create order (Sell order? First update cip113 token utxo in setup.ts)
+- register all stake credentials
+- save all batching related validator -> replace hashes in `batching.ts`
+- submit batching transaction
+
+
+// Review
+- Probably change pool datum last element (dynamic fee) to NONE ??
+- (*) Total liquidity in pool datum might not or might be changed (should change but it's not changed); Also, remaining liquidty out should change
+
+
+// Batching review
+- receiver address may not be have been passed correctly in order_datum
+- order_out_value == get_swap_output_value( <==== comparison might not be ordered because of the new Aiken update
+
+// Lession learnt (Aiken)
+- Make unused redeemers type `Data`
+- Do not leave any warnings in Aiken during build (A)
+- Do not build crashed programs (B)
+- Both A and B will lead to redeemer errors
+
+
+
+
+
+
+
+
+""" (ARCHIVE) FOUR """ (Minswap contracts in normal mode, Cip 113 contract in normal mode Aiken v1.1.17)
+
+Dex initialization:
+    4bd6fee82f9802448384b102098186ca8302fdf875971f266ed7795dfea53f88
+
+
+Pool Creation:
+    bb4e128bd599dd3bc7eb68e1c4d5b727a253e749566ff54776910efd98e24b14
+
+REGISTER STAKE CREDENTIALS:
+    03acb94865be4335b0dccb95152aa5186a6ab4583006727264b20ee6c3456afa
+
+Pool Batching:
+    Create Order:
+        a159f1ba6ff989ee964e948a873a56ca233125c05fa39f0882b315c588ebce56 (Buy)
+        729f0013fad6a4c9316215190a39302a96bc307a80e688d741ec614bea787c7a (Sell)
+    Process Order:
+        
+    Cancel order:
+        1a7e803f09c95dd11190e1ca1111453b654c8931c2f0fbf4afdecdd9c7d1876b (Buy)
+        7a280518428c8ab9b0f0866ea9a5beace08205514b20e21e398e6bd692e9a99e (Sell)
+
+
+
+
+
+""" (ARCHIVE) THREE """ (Minswap contracts in verbose mode, Cip 113 contract in normal mode Aiken v1.1.17)
+
+Dex initialization:
+    d35c98051c8ec16d5f8731913e6cd9351e921a054cc2e0b4773152aa8a358e34
+
+
+Pool Creation:
+    7c72f0dcb71e9d40036f6efc9fead8ba8fcf593aa56b1bc8a49494f344fa17be
+
+REGISTER STAKE CREDENTIALS:
+    32b47f8f1b994743733e036e3079b95545fdd5470446e287f0ac980fd434912a
+
+Pool Batching:
+    Create Order:
+        7a1fbddd9b43cf13e91941a4731ae342a930b81549a25bae50443c3e4bbcbf14 (Buy)
+        0b6545172085e06cf7af2bd1aec39502ed38999c4d24572c9155ce95b3b92f87 (Sell)
+    Process Order:
+        
+    Cancel order:
+        61b0db06f0677fd6029dc5e575e954dd5fee471737c5613bbb2217a79b0ae354 (Buy)
+        81f27a7822b096cd388491eb191f9de20aae6963dbdcebcd755a21099123e1c6 (Sell)
+
+
+
+
+""" (ARCHIVE) TWO """ (Minswap contracts in verbose mode, Cip 113 contract in normal mode Aiken v1.1.9)
+
+Dex initialization:
+    7263e5fc381143bb8bed040c026fee991c934b9586bd650b184db0af989dfc75
+
+
+Pool Creation:
+    f435ca6571cfb4c917484c5ebbc7826b0ddb944f12971566515f886163510734
+
+REGISTER STAKE CREDENTIALS:
+    17eed4f4e42d82415061d1f10f0886f4ea624afcae68c253ae1cf403561788d1
+
+Pool Batching:
+    Create Order:
+        c7d592060fb734ad73e0678e77a7f9413cb9965632941f41600f88b3b7268d89 (Buy)
+        c989005f45dcfe6758c3b84ead9e56463aa34cb5f7158dfe1e891d6945b6c459 (Sell)
+        b8321e760132f148dadaaf68e5f7d90ad270a57cf55205f06bfba86c97d5ac10 (Buy)
+    Process Order:
+        
+    Cancel order:
+        7630df2751df32d334c2d531d70a5a0e9d4db037b6285d08d22dc4d85f5fc68a (Buy)
+        8ad4cfefe4de2123427ee56a78ecb09e1746c022c42e349e029650ffe9c1d043 (Sell)
+        73749542aa43345d55eb1ba30c1e066878c7f75dc879b546b9b3743f0d2aa182 (Buy)
+
+
+
+
+
+
+""" (ARCHIVE) ONE """
+
+Register Order Stake Certificate:
+    e80f8126a8b244bf1335f219a7876f0d87ae2ed90e8e56922c1ef552f081414a
+Register Order Cancellation Stake Certificate:
+    b4c06e84f37510139c5a1f027039e02cb8dfadcdb7018ef78a0d78892e536d00
+Register Pool Stake Certificate:
+    bbf01d4172b0dbb349642dff3a6b05716d7beecb91518c5d571ca1f9b8cbdfd8
+Register Pool Batching Stake Certificate:
+    b559e612d98b33ef6f230c6569bc06e59fa109ee7686f1a1493cf32e808e22d3
+
+ORDERS:
+Cancel order by owner:
+    Create order:
+        406f98b86ae4ff7c9798bb3f6f1b1bb9e968c6332f45e45576fdc9227639d178
+    Cancel Order:
+        3f84564fdf16b6d7d145d0f8ebaecbbc4bb10bbcaeaff2ed9a7af29126b6d3f9
+
+Cancel order by anyone:
+    Create Order:
+        f7428222a1c6d864fb3026a03a8c5e9e3d07d7cbba028362dc97e2c745d861b5
+
+REGISTER ALL STAKE CREDENTIALS:
+    58b43e13866b71481b19c6a0c1a6ad89b799ee5cad6c4bb1dc043caf232e91df
+REGISTER ALL STAKE CREDENTIALS (Necessary validators for batching transaction):
+    681643cf20f36fd3853cd7bdba922163d4fe0718c51b3c836d724ac3153d44b3
