@@ -1,13 +1,13 @@
 import { deserializeDatum, mConStr0, mConStr1, SLOT_CONFIG_NETWORK, stringToHex, unixTimeToEnclosingSlot } from "@meshsdk/core";
 import { alwaysSuccessMintValidatorHash, alwaysSuccessValidatorScript, assetA, assetB, authenAddress, authenPolicyId, blockchainProvider, lpAssetName, orderLovelaceAmount, orderValidatorAddress, orderValidatorRewardAddress, orderValidatorScriptHash, poolAuthAssetName, poolBatchingValidatorHash, poolBatchingValidatorRewardAddress, poolValidatorAddress, poolValidatorRewardAddress, poolValidatorScriptHash, remainingLiquidity, swapAmount, totalLiquidity, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK } from "./setup.js";
 // pool batching ref script
-const poolBatchingScriptTxHash = "75e53842f67e41cb7cbc9f6496913c17147017fae341c4ae77afbdf46fc4a110"; // Preview 1.8.14 -> "77bbb195460ab5fcae27f70858ae373c9cda09a26bfadc8c7655268e840d8ed3"; // Preview 1.8.8 -> "64ef728f6eae2f102108268f66b0c13c27a709baa4e7a87b6be0b89ba749971f";
+const poolBatchingScriptTxHash = "bc02a73acfc80f168c3f00fe715743a5616983ccc7412cef525e088197834c77";
 const poolBatchingScriptTxIndex = 0;
 // pool ref script
-const poolScriptTxHash = "61453a1a6314c58fa622ee2ee1651d18420a4c60a47c17c82eb70e15a7f2ba1c"; // Preview 1.8.14 -> "7a946f89065ea118b133c405771bbb06f9eca14b19796ae2b9b2475066a230ec"; // Preview 1.8.8 -> "8d7f379ef425a9a35fd58c2b92cbb31d1237774387fa71368ca7d19250928a9f";
+const poolScriptTxHash = "ef1107b3d291c3598d7c464e0de7a12e7f12ddd03ee87754c981e95be0f7cb85";
 const poolScriptTxIndex = 0;
 // order ref script
-const orderScriptTxHash = "d4a881d7562d1e17fa0ae7b02dd9dec40564ca2e7258b286ba8d5511ce97809a"; // Preview 1.8.14 -> "fe772f40e5426b35451a3bf20c7fcc22902062517b7ddeb42ca6cd781c31be58"; // Preview 1.8.8 -> "8bf0851af4d85a8db601d77576bc2dad733d07d8147b31c75b67e743d92573e6";
+const orderScriptTxHash = "21920886fd8d8377136021e6ac7271ee612fe3f54aa4b2a7e23b383b38bc3870";
 const orderScriptTxIndex = 0;
 console.log("pool validator utxos number:", (await blockchainProvider.fetchAddressUTxOs(poolValidatorAddress)).length, '\n');
 console.log("order validator utxos number:", (await blockchainProvider.fetchAddressUTxOs(orderValidatorAddress)).length, '\n');
@@ -56,9 +56,9 @@ const poolDatum = mConStr0([
     mConStr1([]),
     mConStr0([]),
 ]);
-const invalidBefore = unixTimeToEnclosingSlot((Date.now() - 30000), SLOT_CONFIG_NETWORK.preprod);
+const invalidBefore = unixTimeToEnclosingSlot((Date.now() - 50000), SLOT_CONFIG_NETWORK.preview);
 const invalidAfter = unixTimeToEnclosingSlot((Date.now() + 8 * 60 * 1000), // 8 mins
-SLOT_CONFIG_NETWORK.preprod);
+SLOT_CONFIG_NETWORK.preview);
 const unsignedTx = await txBuilder
     // spend order utxo
     .spendingPlutusScriptV3()

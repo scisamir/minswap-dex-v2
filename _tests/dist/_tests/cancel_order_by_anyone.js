@@ -6,7 +6,7 @@ if (!orderUtxo) {
     throw new Error("order utxo not found!");
 }
 console.log("orderUtxo:", orderUtxo);
-const invalidBefore = unixTimeToEnclosingSlot((Date.now() - 15000), SLOT_CONFIG_NETWORK.preprod);
+const invalidBefore = unixTimeToEnclosingSlot((Date.now() - 15000), SLOT_CONFIG_NETWORK.preview);
 console.log('\n', "expired time: 1738668722616");
 console.log(" current time:", Date.now() - 15000, '\n');
 const unsignedTx = await txBuilder

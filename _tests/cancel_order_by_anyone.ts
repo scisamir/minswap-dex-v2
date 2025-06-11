@@ -10,7 +10,7 @@ console.log("orderUtxo:", orderUtxo);
 
 const invalidBefore = unixTimeToEnclosingSlot(
     (Date.now() - 15000),
-    SLOT_CONFIG_NETWORK.preprod
+    SLOT_CONFIG_NETWORK.preview
 )
 
 console.log('\n', "expired time: 1738668722616");

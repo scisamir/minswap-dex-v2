@@ -1,5 +1,5 @@
 import { mConStr0, mConStr1, stringToHex } from "@meshsdk/core";
-import { alwaysSuccessMintValidatorHash, assetA, assetB, authenPolicyId, blockchainProvider, factoryAddress, factoryAssetName, factoryValidatorScript, iMyTokenTwoSupply, lpAssetName, maxInt64, myTokenOneSupply, poolAuthAssetName, poolBatchingValidatorHash, poolValidatorAddress, remainingLiquidity, totalLiquidity, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos } from "./setup.js";
+import { AdaAssetA, alwaysSuccessMintValidatorHash, assetB, authenPolicyId, blockchainProvider, factoryAddress, factoryAssetName, factoryValidatorScript, AdaTokenSupply, AdaLpAssetName, maxInt64, myTokenOneSupply, poolAuthAssetName, poolBatchingValidatorHash, poolValidatorAddress, AdaRemainingLiquidity, AdaTotalLiquidity, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos } from "../setup.js";
 // Authen
 const authenScriptTxHash = "3f586737d101c37663653d7ecd681f03bcffdbbd73a038bdb1a465e48735d118";
 const authenScriptTxIndex = 0;
@@ -12,7 +12,7 @@ if (!factoryInput) {
     throw new Error('Factory input not found');
 }
 const factoryRedeemer = mConStr0([
-    assetA,
+    AdaAssetA,
     assetB,
 ]);
 // console.log("Asset A unit:", alwaysSuccessMintValidatorHash, tokenA);
@@ -20,28 +20,28 @@ const factoryRedeemer = mConStr0([
 const factoryNftUnit = authenPolicyId + factoryAssetName;
 const factoryDatum1 = mConStr0([
     "00",
-    lpAssetName,
+    AdaLpAssetName,
 ]);
 const factoryDatum2 = mConStr0([
-    lpAssetName,
+    AdaLpAssetName,
     "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00",
 ]);
 // pool datum
 const poolDatum = mConStr0([
     mConStr1([poolBatchingValidatorHash]),
-    assetA,
+    AdaAssetA,
     assetB,
-    totalLiquidity,
-    iMyTokenTwoSupply,
+    AdaTotalLiquidity,
+    AdaTokenSupply,
     myTokenOneSupply,
     6,
     6,
     mConStr1([]),
     mConStr0([]), // ??
 ]);
-// console.log("totalLiquidity:", totalLiquidity, '\n');
-// console.log("remainingLiquidity:", remainingLiquidity, '\n');
-// console.log("remainingLiquidity String:", String(remainingLiquidity), '\n');
+// console.log("AdaTotalLiquidity:", AdaTotalLiquidity, '\n');
+// console.log("AdaRemainingLiquidity:", AdaRemainingLiquidity, '\n');
+// console.log("AdaRemainingLiquidity String:", String(AdaRemainingLiquidity), '\n');
 const unsignedTx = await txBuilder
     // consume last factory UTxO
     .spendingPlutusScriptV3()
@@ -64,7 +64,7 @@ const unsignedTx = await txBuilder
     .mintRedeemerValue(mConStr1([]))
     // mint lp tokens
     .mintPlutusScriptV3()
-    .mint(String(maxInt64), authenPolicyId, lpAssetName)
+    .mint(String(maxInt64), authenPolicyId, AdaLpAssetName)
     // .mintingScript(authenValidatorScript)
     .mintTxInReference(authenScriptTxHash, authenScriptTxIndex)
     .mintRedeemerValue(mConStr1([]))
@@ -76,10 +76,10 @@ const unsignedTx = await txBuilder
     .txOutInlineDatumValue(factoryDatum2)
     // pool validator output
     .txOut(poolValidatorAddress, [
-    { unit: "lovelace", quantity: "4500000" },
-    { unit: alwaysSuccessMintValidatorHash + stringToHex("iMyTokenTwo"), quantity: String(iMyTokenTwoSupply) },
+    // add min_ada to ada supply
+    { unit: "lovelace", quantity: String(AdaTokenSupply + 4500000) },
     { unit: alwaysSuccessMintValidatorHash + stringToHex("myTokenOne"), quantity: String(myTokenOneSupply) },
-    { unit: authenPolicyId + lpAssetName, quantity: String(remainingLiquidity) },
+    { unit: authenPolicyId + AdaLpAssetName, quantity: String(AdaRemainingLiquidity) },
     { unit: authenPolicyId + poolAuthAssetName, quantity: "1" },
 ])
     .txOutInlineDatumValue(poolDatum)

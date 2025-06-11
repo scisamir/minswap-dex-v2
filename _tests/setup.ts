@@ -25,7 +25,7 @@ if (!maestroKey) {
     throw new Error("MAESTRO_KEY does not exist");
 }
 const blockchainProvider = new MaestroProvider({
-    network: 'Preprod',
+    network: 'Preview',
     apiKey: maestroKey,
 });
 
@@ -54,11 +54,11 @@ const wallet1 = new MeshWallet({
 const wallet1Address = await wallet1.getChangeAddress();
 
 const wallet1Utxos = await wallet1.getUtxos();
-const wallet1Collateral: UTxO = (await blockchainProvider.fetchUTxOs("d4a881d7562d1e17fa0ae7b02dd9dec40564ca2e7258b286ba8d5511ce97809a", 1))[0];
+const wallet1Collateral: UTxO = (await blockchainProvider.fetchUTxOs("0151bd90bf9c1e3b63923fd1e61d80448818c7ca8fd292a2ef842637f958e5bf", 1))[0];
 // const wallet1Collateral: UTxO = (await wallet1.getCollateral())[0]
-// if (!wallet1Collateral) {
-//     throw new Error('No collateral utxo found');
-// }
+if (!wallet1Collateral) {
+    throw new Error('No collateral utxo found');
+}
 
 const { pubKeyHash: wallet1VK, stakeCredentialHash: wallet1SK } = deserializeAddress(wallet1Address);
 
@@ -76,7 +76,7 @@ const wallet2 = new MeshWallet({
         words: wallet2Passphrase.split(' ')
     },
 });
-const wallet2Address = await wallet1.getChangeAddress();
+const wallet2Address = await wallet2.getChangeAddress();
 const { pubKeyHash: wallet2VK } = deserializeAddress(wallet2Address);
 const wallet2Utxos = await wallet2.getUtxos();
 const wallet2Collateral: UTxO = (await wallet2.getCollateral())[0]
@@ -102,7 +102,7 @@ const { address: multiSigAddress, scriptCbor: multiSigCbor } = serializeNativeSc
 const multisigHash = resolveNativeScriptHash(nativeScript);
 
 // Evaluator for Aiken verbose mode
-const evaluator = new OfflineEvaluator(blockchainProvider, 'preprod');
+const evaluator = new OfflineEvaluator(blockchainProvider, 'preview');
 // Create transaction builder
 const txBuilder = new MeshTxBuilder({
     fetcher: blockchainProvider,
@@ -111,7 +111,7 @@ const txBuilder = new MeshTxBuilder({
     // evaluator: blockchainProvider,
     // verbose: true,
 });
-txBuilder.setNetwork('preprod');
+txBuilder.setNetwork('preview');
 
 // constants
 const factoryAssetName = "4d5346";
@@ -145,8 +145,8 @@ const alwaysSuccessValidatorHash = resolveScriptHash(alwaysSuccessValidatorScrip
 const authenValidator = blueprint.validators.filter(v => (
     v.title.includes("authen_minting_policy.authen_minting_policy.mint")
 ));
-const dexInitParamTxHash = "00960ee7101756197ba4675be7f9ba082e9ee94fc857c57fe355f2401c1bd985";  // change this and below on each dex init
-const dexInitParamTxIndex = 2;
+const dexInitParamTxHash = "e4f0d90aac5c5b9cdab2fba89edf877e6d53439b7be63d72397b0fc2e4413092";  // change this and below on each dex init
+const dexInitParamTxIndex = 1;
 const authenValidatorScript = applyParamsToScript(
     authenValidator[0].compiledCode,
     [outputReference(dexInitParamTxHash, dexInitParamTxIndex)],
@@ -186,7 +186,7 @@ const poolAddressData = scriptAddress(
     true,
 );
 const poolValidatorScriptHash = poolStakeCredentialHash;
-console.log("poolValidatorScriptHash:", poolValidatorScriptHash);
+// console.log("poolValidatorScriptHash:", poolValidatorScriptHash);
 
 // Pool Batching Validator
 const poolBatchingValidator = blueprint.validators.filter(v => (
@@ -203,7 +203,7 @@ const poolBatchingValidatorRewardAddress = serializeRewardAddress(
     true,
     0,
 );
-console.log("poolBatchingValidatorHash:", poolBatchingValidatorHash);
+// console.log("poolBatchingValidatorHash:", poolBatchingValidatorHash);
 
 // Factory Validator
 const factoryValidator = blueprint.validators.filter(v => (
@@ -252,12 +252,34 @@ const orderValidatorAddress = serializePlutusScript(
     0,
     true,
 ).address;
+// const orderValidatorAddressVariant = serializePlutusScript(
+//     { code: alwaysSuccessValidatorScript, version: "V3" },
+//     orderValidatorScriptHash,
+//     0,
+//     false,
+// ).address;
+// const orderValidatorAddressVariant2 = serializePlutusScript(
+//     { code: alwaysSuccessValidatorScript, version: "V3" },
+//     alwaysSuccessValidatorHash,
+//     0,
+//     true,
+// ).address;
+// const orderValidatorAddressVariant3 = serializePlutusScript(
+//     { code: alwaysSuccessValidatorScript, version: "V3" },
+//     alwaysSuccessValidatorHash,
+//     0,
+//     false,
+// ).address;
+// console.log("orderValidatorAddress:", orderValidatorAddress);
+// console.log("orderValidatorAddress variant:", orderValidatorAddressVariant);
+// console.log("orderValidatorAddress variant2:", orderValidatorAddressVariant2);
+// console.log("orderValidatorAddress variant3:", orderValidatorAddressVariant3);
 const orderValidatorRewardAddress = serializeRewardAddress(
     orderValidatorScriptHash,
     true,
     0,
 );
-console.log("orderValidatorScriptHash:", orderValidatorScriptHash);
+// console.log("orderValidatorScriptHash:", orderValidatorScriptHash);
 // console.log('orderValidator Reward Address:', orderValidatorRewardAddress);
 
 // tests
@@ -286,6 +308,13 @@ const alwaysSuccessValidatorMintScript = applyParamsToScript(
 const alwaysSuccessMintValidatorHash = resolveScriptHash(alwaysSuccessValidatorMintScript, "V3");
 
 // pool utils
+// for ADA
+const AdaTokenA = "";
+// const AdaTokenA = stringToHex("");
+const AdaAssetA = mConStr0([
+    "",
+    AdaTokenA,
+]);
 const tokenA = stringToHex("iMyTokenTwo");
 const assetA = mConStr0([
     alwaysSuccessMintValidatorHash,
@@ -305,16 +334,30 @@ const sha3 = (hex: string): string => {
 const assetASha256 = sha3(alwaysSuccessMintValidatorHash + tokenA);
 const assetBSha256 = sha3(alwaysSuccessMintValidatorHash + tokenB);
 const lpAssetName = sha3(assetASha256 + assetBSha256);
+// for ADA
+const AdaAssetASha256 = sha3("" + AdaTokenA);
+const AdaLpAssetName = sha3(AdaAssetASha256 + assetBSha256);
+
+// console.log("alwaysSuccessMintValidatorHash:", alwaysSuccessMintValidatorHash);
+// console.log("tokenB:", tokenB);
+// console.log("AdaLpAssetName:", AdaLpAssetName);
 // asset supplies
+// for ADA
+const AdaTokenSupply = 1500000000;
 const iMyTokenTwoSupply = 1500;
 const myTokenOneSupply = 1500;
 const totalLiquidity = calculateInitialLiquidity(myTokenOneSupply, iMyTokenTwoSupply);
+// for ADA
+const AdaTotalLiquidity = calculateInitialLiquidity(AdaTokenSupply, myTokenOneSupply);
 // console.log("totalLiquidity:", totalLiquidity);
 const maxInt64 = 9223372036854775807n;
 const remainingLiquidity = maxInt64 - (BigInt(totalLiquidity) - 10n);
+// for ADA
+const AdaRemainingLiquidity = maxInt64 - (BigInt(AdaTotalLiquidity) - 10n);
 
 // order utils
 const swapAmount = 20;
+const AdaSwapAmount = 20000000;
 const orderLovelaceAmount = 10000000;
 
 export {
@@ -333,6 +376,7 @@ export {
     wallet2Collateral,
     wallet2Utxos,
     wallet2Address,
+    wallet2VK,
     // multisig
     multisigHash,
     multiSigAddress,
@@ -387,4 +431,12 @@ export {
     // order utils
     swapAmount,
     orderLovelaceAmount,
+    // for ADA
+    AdaTokenA,
+    AdaAssetA,
+    AdaTokenSupply,
+    AdaSwapAmount,
+    AdaLpAssetName,
+    AdaRemainingLiquidity,
+    AdaTotalLiquidity,
 }

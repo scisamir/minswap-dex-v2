@@ -1,8 +1,8 @@
 import { stringToHex } from "@meshsdk/core";
 import { alwaysSuccessMintValidatorHash, alwaysSuccessValidatorMintScript, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos } from "./setup.js";
 // Change token name below to mint any token
-const tokenName = "iMyTokenTwo";
-// const tokenName = "myTokenOne";
+// const tokenName = "iMyTokenTwo";
+const tokenName = "myTokenOne";
 const tokenNameHex = stringToHex(tokenName);
 const unsignedTx = await txBuilder
     .mintPlutusScriptV3()

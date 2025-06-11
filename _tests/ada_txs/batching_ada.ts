@@ -1,14 +1,14 @@
 import { deserializeDatum, mConStr0, mConStr1, mConStr2, mConStr3, SLOT_CONFIG_NETWORK, stringToHex, unixTimeToEnclosingSlot } from "@meshsdk/core";
-import { alwaysSuccessMintValidatorHash, alwaysSuccessValidatorScript, assetA, assetB, authenAddress, authenPolicyId, blockchainProvider, lpAssetName, orderLovelaceAmount, orderValidatorAddress, orderValidatorRewardAddress, orderValidatorScript, orderValidatorScriptHash, poolAuthAssetName, poolBatchingValidatorHash, poolBatchingValidatorRewardAddress, poolBatchingValidatorScript, poolValidatorAddress, poolValidatorRewardAddress, poolValidatorScript, poolValidatorScriptHash, remainingLiquidity, swapAmount, totalLiquidity, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK, wallet2, wallet2Address, wallet2Collateral, wallet2Utxos } from "./setup.js";
+import { alwaysSuccessMintValidatorHash, alwaysSuccessValidatorScript, AdaAssetA, assetB, authenAddress, authenPolicyId, blockchainProvider, AdaLpAssetName, orderLovelaceAmount, orderValidatorAddress, orderValidatorRewardAddress, orderValidatorScript, orderValidatorScriptHash, poolAuthAssetName, poolBatchingValidatorHash, poolBatchingValidatorRewardAddress, poolBatchingValidatorScript, poolValidatorAddress, poolValidatorRewardAddress, poolValidatorScript, poolValidatorScriptHash, AdaRemainingLiquidity, AdaSwapAmount, AdaTotalLiquidity, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK, wallet2, wallet2Address, wallet2Collateral, wallet2Utxos } from "../setup.js";
 
 // pool batching ref script
-const poolBatchingScriptTxHash = "bc02a73acfc80f168c3f00fe715743a5616983ccc7412cef525e088197834c77";
+const poolBatchingScriptTxHash = "0151bd90bf9c1e3b63923fd1e61d80448818c7ca8fd292a2ef842637f958e5bf";
 const poolBatchingScriptTxIndex = 0;
 // pool ref script
-const poolScriptTxHash = "ef1107b3d291c3598d7c464e0de7a12e7f12ddd03ee87754c981e95be0f7cb85";
+const poolScriptTxHash = "5198704027297ac4c8945a3515886ebe5067f8a887387726e5569948dc7c9567";
 const poolScriptTxIndex = 0;
 // order ref script
-const orderScriptTxHash = "21920886fd8d8377136021e6ac7271ee612fe3f54aa4b2a7e23b383b38bc3870";
+const orderScriptTxHash = "9bcafaac04c26a1b79bfb8171375cfe5f64e0e7d03a033c2d9a2b27f56bf35f6";
 const orderScriptTxIndex = 0;
 
 console.log("pool validator utxos number:", (await blockchainProvider.fetchAddressUTxOs(poolValidatorAddress)).length, '\n');
@@ -46,16 +46,16 @@ if (!poolUtxo.output.plutusData) {
     throw new Error("No datum in pool utxo");
 }
 const oldPoolDatum = deserializeDatum(poolUtxo.output.plutusData); // ideal way is to create a type for the datum to deserialize; this is just for testing
-const updatedIMyTokenTwoSupply = oldPoolDatum.fields[4].int + swapAmount;
+const updatedAdaTokenSupply = oldPoolDatum.fields[4].int + AdaSwapAmount;
 const updatedMyTokenOneSupply = oldPoolDatum.fields[5].int - assetBAmount;
-console.log("updatedIMyTokenTwoSupply:", updatedIMyTokenTwoSupply);
+console.log("updatedAdaTokenSupply:", updatedAdaTokenSupply);
 console.log("updatedMyTokenOneSupply:", updatedMyTokenOneSupply);
 const poolDatum = mConStr0([
     mConStr1([poolBatchingValidatorHash]),
-    assetA,
+    AdaAssetA,
     assetB,
-    totalLiquidity,
-    updatedIMyTokenTwoSupply,
+    AdaTotalLiquidity,
+    updatedAdaTokenSupply,
     updatedMyTokenOneSupply,
     6,
     6,
@@ -64,7 +64,7 @@ const poolDatum = mConStr0([
 ]);
 
 const invalidBefore = unixTimeToEnclosingSlot(
-    (Date.now() - 50000),
+    (Date.now() - 40000),
     SLOT_CONFIG_NETWORK.preview
 )
 
@@ -121,10 +121,9 @@ const unsignedTx = await txBuilder
     ])
     // pool validator output
     .txOut(poolValidatorAddress, [
-        { unit: "lovelace", quantity: "4500000" },
-        { unit: alwaysSuccessMintValidatorHash + stringToHex("iMyTokenTwo"), quantity: String(updatedIMyTokenTwoSupply) },
+        { unit: "lovelace", quantity: String(updatedAdaTokenSupply + 4500000) },
         { unit: alwaysSuccessMintValidatorHash + stringToHex("myTokenOne"), quantity: String(updatedMyTokenOneSupply) },
-        { unit: authenPolicyId + lpAssetName, quantity: String(remainingLiquidity) },
+        { unit: authenPolicyId + AdaLpAssetName, quantity: String(AdaRemainingLiquidity) },
         { unit: authenPolicyId + poolAuthAssetName, quantity: "1" },
     ])
     .txOutInlineDatumValue(poolDatum)
