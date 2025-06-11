@@ -1,4 +1,3 @@
-use aiken/builtin
 use aiken/collection/dict
 use aiken/collection/list
 use aiken/collection/pairs
@@ -67,9 +66,9 @@ pub fn sorted_asset(asset_a: Asset, asset_b: Asset) -> Bool {
   let Asset { policy_id: asset_b_policy_id, asset_name: asset_b_asset_name } =
     asset_b
   if asset_a_policy_id == asset_b_policy_id {
-    builtin.less_than_bytearray(asset_a_asset_name, asset_b_asset_name)
+    bytearray.compare(asset_a_asset_name, asset_b_asset_name) == Less
   } else {
-    builtin.less_than_bytearray(asset_a_policy_id, asset_b_policy_id)
+    bytearray.compare(asset_a_policy_id, asset_b_policy_id) == Less
   }
 }
 
@@ -134,7 +133,10 @@ pub fn must_find_script_datum(datums: DatumMap, datum: Datum) -> Data {
     DatumHash(dh) ->
       datums
         |> dict_must_get(dh)
-    NoDatum -> fail
+    NoDatum -> {
+      trace @"fd": 12
+      fail
+    }
   }
 }
 
@@ -201,26 +203,16 @@ fn list_at_index_step(outputs: List<a>, current_index: Int) -> a {
     expect [output, ..] = outputs
     output
   } else {
-    outputs
-      |> builtin.tail_list
-      |> list_at_index_step(current_index - 1)
+    expect Some(outputs_tail) = outputs |> list.tail
+
+    outputs_tail |> list_at_index_step(current_index - 1)
   }
 }
 
 /// Small utility to skip 10 items in a list.
 /// Used by `list_at_index`.
 pub fn skip_10_items(some_list: List<a>) -> List<a> {
-  some_list
-    |> builtin.tail_list
-    |> builtin.tail_list
-    |> builtin.tail_list
-    |> builtin.tail_list
-    |> builtin.tail_list
-    |> builtin.tail_list
-    |> builtin.tail_list
-    |> builtin.tail_list
-    |> builtin.tail_list
-    |> builtin.tail_list
+  list.drop(some_list, 10)
 }
 
 test test_list_at_index() {
@@ -266,11 +258,11 @@ pub fn compare_list_length(arr1: List<a>, arr2: List<b>) -> Bool {
     _ ->
       when arr2 is {
         [] -> False
-        _ ->
-          compare_list_length(
-            arr1 |> builtin.tail_list,
-            arr2 |> builtin.tail_list,
-          )
+        _ -> {
+          expect Some(arr1_tail) = list.tail(arr1)
+          expect Some(arr2_tail) = list.tail(arr2)
+          compare_list_length(arr1_tail, arr2_tail)
+        }
       }
   }
 }
@@ -300,7 +292,8 @@ test test_compare_list_length_3() {
 }
 
 const empty_mark =
-  #[0,
+  #[
+    0,
     0,
     0,
     0,
@@ -375,25 +368,21 @@ fn do_is_unique_bytearray_unsorted(
   if index >= length {
     True
   } else {
-    let value_as_index = builtin.index_bytearray(self, index)
-    let acc_value = builtin.index_bytearray(acc, value_as_index)
+    let value_as_index = bytearray.at(self, index)
+    let acc_value = bytearray.at(acc, value_as_index)
     if acc_value == 1 {
       False
     } else {
-      let left_slice = builtin.slice_bytearray(0, value_as_index, acc)
-      let righ_slice = builtin.slice_bytearray(value_as_index + 1, 64, acc)
-      let new_acc =
-        builtin.append_bytearray(
-          left_slice,
-          builtin.cons_bytearray(1, righ_slice),
-        )
+      let left_slice = bytearray.slice(acc, 0, value_as_index - 1)
+      let right_slice = bytearray.slice(acc, value_as_index + 1, 64)
+      let new_acc = bytearray.concat(left_slice, bytearray.push(right_slice, 1))
       do_is_unique_bytearray_unsorted(self, new_acc, index + 1, length)
     }
   }
 }
 
 pub fn is_unique_bytearray_unsorted(array: ByteArray) -> Bool {
-  let length = builtin.length_of_bytearray(array)
+  let length = bytearray.length(array)
   if length > 0 {
     do_is_unique_bytearray_unsorted(array, empty_mark, 0, length)
   } else {
@@ -403,7 +392,8 @@ pub fn is_unique_bytearray_unsorted(array: ByteArray) -> Bool {
 
 test test_unique_bytearray_unsorted_1() {
   let array =
-    #[1,
+    #[
+      1,
       2,
       3,
       4,
@@ -508,9 +498,9 @@ pub fn authorize_pool_license(
 ) -> Bool {
   when author is {
     // If the authorization method is PubKey, validate using the provided signature.
-    PAMSignature(pub_key_hash) -> list.has(extra_signatories, pub_key_hash)
+    PAMSignature { pub_key_hash } -> list.has(extra_signatories, pub_key_hash)
     // If the authorization method is SpendScript, ensure the Utxo is present in the transaction inputs.
-    PAMSpendScript(script_hash) -> {
+    PAMSpendScript { script_hash } -> {
       let auth_cred = Script(script_hash)
       list.any(
         transaction_inputs,
@@ -524,7 +514,7 @@ pub fn authorize_pool_license(
       )
     }
     // If the authorization method is WithdrawScript, validate the presence of a withdrawal in the transaction.
-    PAMWithdrawScript(script_hash) ->
+    PAMWithdrawScript { script_hash } ->
       pairs.has_key(withdrawals, Script(script_hash))
   }
 }
@@ -539,9 +529,9 @@ pub fn authorize_order_license(
 ) -> Bool {
   when author is {
     // If the authorization method is PubKey, validate using the provided signature.
-    OAMSignature(pub_key_hash) -> list.has(extra_signatories, pub_key_hash)
+    OAMSignature { pub_key_hash } -> list.has(extra_signatories, pub_key_hash)
     // If the authorization method is SpendScript, ensure the Utxo is present in the transaction inputs.
-    OAMSpendScript(script_hash) -> {
+    OAMSpendScript { script_hash } -> {
       let auth_cred = Script(script_hash)
       list.any(
         transaction_inputs,
@@ -555,10 +545,10 @@ pub fn authorize_order_license(
       )
     }
     // If the authorization method is WithdrawScript, validate the presence of a withdrawal in the transaction.
-    OAMWithdrawScript(script_hash) ->
+    OAMWithdrawScript { script_hash } ->
       pairs.has_key(withdrawals, Script(script_hash))
     // If the authorization method is MintScript, ensure the minted tokens meet the policy ID requirements and have a non-zero quantity.
-    OAMMintScript(script_hash) -> {
+    OAMMintScript { script_hash } -> {
       expect [Pair(_, fst_token_quantity), ..] =
         transaction_mint
           |> assets.tokens(script_hash)

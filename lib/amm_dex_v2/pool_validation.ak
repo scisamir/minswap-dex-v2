@@ -74,7 +74,6 @@ pub fn get_batching_pool(
   } = pool_output
 
   // trace @"gbp": require_total_liquidity_unchange, stake_credential
-
   expect pool_in_datum: PoolDatum =
     utils.must_find_script_inline_datum(pool_in_datum_raw)
 
@@ -181,7 +180,11 @@ pub fn get_batching_pool(
       |> assets.add(authen_policy_id, utils.pool_auth_asset_name, 1)
       |> assets.add(asset_a_policy_id, asset_a_asset_name, value_reserve_a_in)
       |> assets.add(asset_b_policy_id, asset_b_asset_name, value_reserve_b_in)
-      |> assets.add(authen_policy_id, lp_asset_name, remaining_liquidity_supply_in)
+      |> assets.add(
+          authen_policy_id,
+          lp_asset_name,
+          remaining_liquidity_supply_in,
+        )
       |> assets.add(ada_policy_id, ada_asset_name, utils.min_pool_ada)
   let estimate_pool_out_value =
     assets.zero
@@ -199,12 +202,12 @@ pub fn get_batching_pool(
       estimate_pool_out_value == pool_out_value,
       remaining_liquidity_supply_out - remaining_liquidity_supply_in == pool_in_total_liquidity - pool_out_total_liquidity,
     }
+
   // expect and {
   //     (estimate_pool_in_value == pool_in_value)?,
   //     (estimate_pool_out_value == pool_out_value)?,
   //     (remaining_liquidity_supply_out - remaining_liquidity_supply_in == pool_in_total_liquidity - pool_out_total_liquidity)?,
   //   }
-
   let trading_fee_a_numerator =
     get_trading_fee_numerator(
       base_fee_num: pool_in_base_fee_a_numerator,
@@ -589,8 +592,10 @@ pub fn has_only_pool_and_author(
             Script(sh) -> or {
                 payment_cred == pool_payment_cred,
                 when pool_author is {
-                  PAMSpendScript(author_hash) -> sh == author_hash
-                  PAMWithdrawScript(author_hash) -> sh == author_hash
+                  PAMSpendScript { script_hash: author_hash } ->
+                    sh == author_hash
+                  PAMWithdrawScript { script_hash: author_hash } ->
+                    sh == author_hash
                   _ -> False
                 },
               }

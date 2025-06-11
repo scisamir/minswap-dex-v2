@@ -1,4 +1,3 @@
-use aiken/builtin
 use aiken/collection/list
 use aiken/collection/pairs
 use aiken/primitive/bytearray
@@ -64,10 +63,9 @@ validator pool_validator(
         let PoolDatum { pool_batching_stake_credential, .. } = datum
 
         // trace @"is pairs in pool val..": pairs.has_key(withdrawals, pool_batching_stake_credential), True, False
-
         pairs.has_key(withdrawals, pool_batching_stake_credential)
       }
-      UpdatePoolParameters(action) -> {
+      UpdatePoolParameters { action } -> {
         let Transaction {
           inputs,
           reference_inputs,
@@ -252,8 +250,8 @@ validator pool_batching_validator(
           addr == pool_address
         },
       )
-    // trace @"pool_outputs no. (imd)": list.length(pool_outputs)
 
+    // trace @"pool_outputs no. (imd)": list.length(pool_outputs)
     // We assume that inputs not belonging to the batcher or liquidity pool are orders. 
     // These inputs' structure will be verified in the @apply_orders function and SwapMultiRouting branch. 
     // We do not force finding the order script hash here, as we allow for the possibility of upgrading the order contract (possibly to Plutus V3).
@@ -263,16 +261,15 @@ validator pool_batching_validator(
         fn(input) {
           let Input { output: out, .. } = input
           let Output { address: addr, .. } = out
-          let Address {
-            payment_credential: payment_cred,
-            ..
-          } = addr
+          let Address { payment_credential: payment_cred, .. } = addr
           and {
             addr != pool_address,
             when batcher_address is {
-              PAMSignature(pkh) -> payment_cred != VerificationKey(pkh)
-              PAMSpendScript(sh) -> payment_cred != Script(sh)
-              PAMWithdrawScript(sh) -> payment_cred != Script(sh)
+              PAMSignature { pub_key_hash: pkh } ->
+                payment_cred != VerificationKey(pkh)
+              PAMSpendScript { script_hash: sh } -> payment_cred != Script(sh)
+              PAMWithdrawScript { script_hash: sh } ->
+                payment_cred != Script(sh)
             },
           }
         },
@@ -288,27 +285,27 @@ validator pool_batching_validator(
         [],
         fn(idx, ips) { list.push(ips, utils.list_at_index(order_inputs, idx)) },
       )
-    // trace @"sorted_order_inputs no. (imd)": list.length(sorted_order_inputs)
 
+    // trace @"sorted_order_inputs no. (imd)": list.length(sorted_order_inputs)
     // trace @"imd b c inp len and pool len"
     expect and {
         // Order Inputs and Input Indexes must have the same length
-        builtin.length_of_bytearray(input_indexes) == list.length(order_inputs),
+        bytearray.length(input_indexes) == list.length(order_inputs),
         // Pool Inputs & Outputs must have the same length
         utils.compare_list_length(pool_inputs, pool_outputs),
       }
+
     // expect and {
     //     // Order Inputs and Input Indexes must have the same length
-    //     (builtin.length_of_bytearray(input_indexes) == list.length(order_inputs))?,
+    //     (bytearray.length(input_indexes) == list.length(order_inputs))?,
     //     // Pool Inputs & Outputs must have the same length
     //     (utils.compare_list_length(pool_inputs, pool_outputs))?,
     //   }
-
     when pool_inputs is {
       [pool_input] -> {
         // trace @"when p in is 1"
         // In case transaction only contains 1 Pool Input & Output, all order types are accepted except SwapMultiRouting
-        let pool_output = pool_outputs |> builtin.head_list
+        expect Some(pool_output) = list.head(pool_outputs)
         // trace @"imd b exp vol.."
         expect [vol_fee] = vol_fees
         let Input { output: pool_in_output, .. } = pool_input
@@ -336,12 +333,10 @@ validator pool_batching_validator(
         // trace @"order_inputs": order_inputs
         // trace @"sorted_order_inputs": sorted_order_inputs
         // trace @"pool_outputs": pool_outputs
-
         // trace @"pool_inputs no. (last)": list.length(pool_inputs)
         // trace @"order_inputs no. (last)": list.length(order_inputs)
         // trace @"sorted_order_inputs no. (last)": list.length(sorted_order_inputs)
         // trace @"pool_outputs no. (last)": list.length(pool_outputs)
-
         // trace @"i v": 1
         pool_state_out == order_validation.apply_orders(
           datum_map: datums,
@@ -362,7 +357,7 @@ validator pool_batching_validator(
       _ -> {
         // In case transaction only contains more than 1 Pool Input & Output, only single SwapMultiRouting Order is accepted
         expect [order_input] = sorted_order_inputs
-        let order_output = outputs |> builtin.head_list
+        expect Some(order_output) = list.head(outputs)
         expect [order_fee] = orders_fee
         let Input {
           output: Output {
@@ -384,10 +379,13 @@ validator pool_batching_validator(
           expiry_setting_opt,
           ..
         } = order_in_datum
-        expect SwapMultiRouting(routings, swap_amount_option, minimum_receive) =
-          order_step
-        let SwapRouting { lp_asset: first_routing_lp_asset, .. } =
-          routings |> builtin.head_list
+        expect SwapMultiRouting {
+          routings,
+          swap_amount_option,
+          minimum_receive,
+        } = order_step
+        expect Some(SwapRouting { lp_asset: first_routing_lp_asset, .. }) =
+          list.head(routings)
         expect Some(pool_input_indexes) = pool_input_indexes_opt
         expect and {
             // max_batcher_fee must be positive
@@ -416,7 +414,7 @@ validator pool_batching_validator(
             // Pool Input Indexes must be unique
             utils.is_unique_bytearray_unsorted(pool_input_indexes),
             // This contract allows the order routing through at most 3 Pools 
-            builtin.length_of_bytearray(pool_input_indexes) <= 3,
+            bytearray.length(pool_input_indexes) <= 3,
           }
         let sorted_pool_inputs =
           bytearray.foldr(

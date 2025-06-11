@@ -1,5 +1,5 @@
-use aiken/builtin
 use aiken/collection/list
+use aiken/primitive/bytearray
 use amm_dex_v2/math
 use amm_dex_v2/pool_validation
 use amm_dex_v2/types.{Asset, FactoryDatum, FactoryRedeemer, PoolDatum}
@@ -119,8 +119,8 @@ validator factory_validator(
     // (old head, old tail) -> (old head, Pool LP Token Name) and (Pool LP Token Name, old tail)
     // old head < Pool LP Token Name < old tail
     expect and {
-        builtin.less_than_bytearray(new_head_1, new_tail_1)?,
-        builtin.less_than_bytearray(new_head_2, new_tail_2)?,
+        (bytearray.compare(new_head_1, new_tail_1) == Less)?,
+        (bytearray.compare(new_head_2, new_tail_2) == Less)?,
         (new_head_1 == current_head)?,
         (new_tail_2 == current_tail)?,
         (lp_asset_name == new_tail_1)?,
@@ -210,11 +210,11 @@ validator factory_validator(
       // base_fee_a_numerator and base_fee_b_numerator must be the same
       (pool_datum_base_fee_a_numerator == pool_datum_base_fee_b_numerator)?,
       // base_fee_a_numerator and base_fee_b_numerator must be between **5** and **2000**
-      (pool_validation.validate_fee_percent(
+      pool_validation.validate_fee_percent(
         fee_num: pool_datum_base_fee_a_numerator,
         max_fee_num: utils.max_base_fee_numerator,
         min_fee_num: utils.min_base_fee_numerator,
-      ))?,
+      )?,
       // Dynamic Fee is not allowed in Pool Creation 
       (pool_allow_dynamic_fee == False)?,
       // fee_sharing_numerator_opt must be empty

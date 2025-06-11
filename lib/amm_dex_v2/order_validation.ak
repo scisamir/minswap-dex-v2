@@ -1,13 +1,7 @@
-use aiken/builtin
+use aiken/cbor
 use aiken/collection/list
 use aiken/crypto.{blake2b_256}
 use amm_dex_v2/math
-// use amm_dex_v2/types.{
-//   Asset, DatumMap, BatchingPool, SwapRouting,
-//   EODDatumHash, EODInlineDatum, EODNoDatum,
-//   ExtraOrderDatum, OrderDatum, PoolState, SAOAll,
-//   SAOSpecificAmount, SwapAmountOption, SwapExactIn, SortedValueList,
-// }
 use amm_dex_v2/types.{
   Asset, BatchingPool, DAOAll, DAOSpecificAmount, DatumMap, Deposit,
   DepositAmountOption, Donation, EODDatumHash, EODInlineDatum, EODNoDatum,
@@ -49,10 +43,8 @@ fn get_optimized_swap_output_value(
   if utils.is_ada_asset(asset_a_policy_id, asset_a_asset_name) {
     trace @"ad": 1
     let order_in_value_list = order_in_value |> utils.value_to_list
-    let ada_entry = builtin.head_list(order_in_value_list)
-    let rest_0 = builtin.tail_list(order_in_value_list)
-    let asset_a_amount =
-      builtin.snd_pair(builtin.head_list(builtin.snd_pair(ada_entry)))
+    expect [ada_entry, ..rest_0] = order_in_value_list
+    expect Pair(_, [Pair(_, asset_a_amount)]) = ada_entry
     when rest_0 is {
       // If the input value contains only ADA and the swap direction is A To B, 
       // subtract the batcher fee and swap amount of ADA, then add asset B to the output value.
@@ -137,12 +129,20 @@ fn get_swap_output_value(
   if utils.is_ada_asset(asset_in_policy_id, asset_in_asset_name) {
     trace @"x": 1
     order_in_value
-      |> assets.add(ada_policy_id, ada_asset_name, -(used_batcher_fee + amount_in))
+      |> assets.add(
+          ada_policy_id,
+          ada_asset_name,
+          -(used_batcher_fee + amount_in),
+        )
       |> assets.add(asset_out_policy_id, asset_out_asset_name, amount_out)
   } else if utils.is_ada_asset(asset_out_policy_id, asset_out_asset_name) {
     trace @"y": 1
     order_in_value
-      |> assets.add(ada_policy_id, ada_asset_name, amount_out - used_batcher_fee)
+      |> assets.add(
+          ada_policy_id,
+          ada_asset_name,
+          amount_out - used_batcher_fee,
+        )
       |> assets.add(asset_in_policy_id, asset_in_asset_name, -amount_in)
   } else {
     trace @"z": 1
@@ -244,8 +244,8 @@ fn validate_swap_exact_in(
 
   let swap_amount =
     when swap_amount_option is {
-      SAOSpecificAmount(am) -> am
-      SAOAll(deducted_amount) -> {
+      SAOSpecificAmount { swap_amount: am } -> am
+      SAOAll { deducted_amount } -> {
         // deducted amount must be non-negative
         expect deducted_amount >= 0
         assets.quantity_of(
@@ -290,8 +290,8 @@ fn validate_swap_exact_in(
           amount_in: swap_amount,
           amount_out: amount_out,
         ),
-        True,
       }
+    // True,
     if a_to_b_direction {
       (
         datum_reserve_a + swap_amount - earned_fee_in,
@@ -392,8 +392,8 @@ fn validate_swap_exact_out(
     )
   let maximum_swap_amount =
     when maximum_swap_amount_option is {
-      SAOSpecificAmount(am) -> am
-      SAOAll(deducted_amount) -> {
+      SAOSpecificAmount { swap_amount: am } -> am
+      SAOAll { deducted_amount } -> {
         // deducted amount must be non-negative
         expect deducted_amount >= 0
         assets.quantity_of(
@@ -493,8 +493,9 @@ fn validate_deposit(
     lp_asset
   let (deposit_amount_a, deposit_amount_b) =
     when deposit_amount_option is {
-      DAOSpecificAmount(am_a, am_b) -> (am_a, am_b)
-      DAOAll(deducted_amount_a, deducted_amount_b) -> {
+      DAOSpecificAmount { deposit_amount_a: am_a, deposit_amount_b: am_b } ->
+        (am_a, am_b)
+      DAOAll { deducted_amount_a, deducted_amount_b } -> {
         // deducted amount a & b must be non-negative
         expect and {
             deducted_amount_a >= 0,
@@ -605,8 +606,8 @@ fn validate_withdraw(
   let Asset { policy_id: lp_policy_id, asset_name: lp_asset_name } = lp_asset
   let withdrawal_lp_amount =
     when withdrawal_amount_option is {
-      WAOSpecificAmount(am) -> am
-      WAOAll(deducted_amount) -> {
+      WAOSpecificAmount { withdrawal_lp_amount: am } -> am
+      WAOAll { deducted_amount_lp: deducted_amount } -> {
         // deducted amount must be non-negative
         expect deducted_amount >= 0
         assets.quantity_of(order_in_value, lp_policy_id, lp_asset_name) - deducted_amount
@@ -702,8 +703,8 @@ fn validate_zap_out(
   let Asset { policy_id: lp_policy_id, asset_name: lp_asset_name } = lp_asset
   let withdrawal_lp_amount =
     when withdrawal_amount_option is {
-      WAOSpecificAmount(am) -> am
-      WAOAll(deducted_amount) -> {
+      WAOSpecificAmount { withdrawal_lp_amount: am } -> am
+      WAOAll { deducted_amount_lp: deducted_amount } -> {
         // deducted amount must be non-negative
         expect deducted_amount >= 0
         assets.quantity_of(order_in_value, lp_policy_id, lp_asset_name) - deducted_amount
@@ -921,8 +922,8 @@ fn validate_withdraw_imbalance(
   let Asset { policy_id: lp_policy_id, asset_name: lp_asset_name } = lp_asset
   let withdrawal_lp_amount =
     when withdrawal_amount_option is {
-      WAOSpecificAmount(am) -> am
-      WAOAll(deducted_amount) -> {
+      WAOSpecificAmount { withdrawal_lp_amount: am } -> am
+      WAOAll { deducted_amount_lp: deducted_amount } -> {
         // deducted amount must be non-negative
         expect deducted_amount >= 0
         assets.quantity_of(order_in_value, lp_policy_id, lp_asset_name) - deducted_amount
@@ -1126,9 +1127,9 @@ pub fn validate_swap_multi_routing_order(
   minimum_receive: Int,
   used_batcher_fee: Int,
 ) -> Bool {
-  let first_routing = routings |> builtin.head_list
+  expect Some(first_routing) = list.head(routings)
   let last_routing = utils.list_at_index(routings, list.length(routings) - 1)
-  let first_pool = pools |> builtin.head_list
+  expect Some(first_pool) = list.head(pools)
   let last_pool = utils.list_at_index(pools, list.length(pools) - 1)
   let SwapRouting { a_to_b_direction: first_routing_a_to_b_direction, .. } =
     first_routing
@@ -1163,8 +1164,8 @@ pub fn validate_swap_multi_routing_order(
     asset_out
   let swap_amount =
     when swap_amount_option is {
-      SAOSpecificAmount(am) -> am
-      SAOAll(deducted_amount) -> {
+      SAOSpecificAmount { swap_amount: am } -> am
+      SAOAll { deducted_amount } -> {
         // deducted amount must be non-negative
         expect deducted_amount >= 0
         assets.quantity_of(
@@ -1198,8 +1199,7 @@ fn is_valid_datum(raw_datum: Datum, extra_order_datum: ExtraOrderDatum) -> Bool 
     when raw_datum is {
       NoDatum -> EODNoDatum
       DatumHash(dh) -> EODDatumHash(dh)
-      InlineDatum(dat) ->
-        EODInlineDatum(blake2b_256(builtin.serialise_data(dat)))
+      InlineDatum(dat) -> EODInlineDatum(blake2b_256(cbor.serialise(dat)))
     }
   extra_order_datum == expect_extra_order_datum
 }
@@ -1267,14 +1267,14 @@ fn validate_order_output_except_value(
   when receiver_payment_cred is {
     VerificationKey(_) -> receiver == output_address
     Script(_) -> and {
-      // trace @"s dat": receiver_datum, raw_order_output_datum
-      receiver == output_address,
-      // False,
-      is_valid_datum(
-        raw_datum: raw_order_output_datum,
-        extra_order_datum: receiver_datum,
-      ),
-    }
+        // trace @"s dat": receiver_datum, raw_order_output_datum
+        receiver == output_address,
+        // False,
+        is_valid_datum(
+          raw_datum: raw_order_output_datum,
+          extra_order_datum: receiver_datum,
+        ),
+      }
   }
 }
 
@@ -1348,12 +1348,12 @@ pub fn apply_orders(
   //   }
   let (new_state, rest_outs) =
     when order_step is {
-      SwapExactIn(
+      SwapExactIn {
         a_to_b_direction,
         swap_amount_option,
         minimum_receive,
-        order_killable,
-      ) -> {
+        killable: order_killable,
+      } -> {
         expect [output, ..rest_outputs] = all_outputs
         expect minimum_receive > 0
         (
@@ -1381,7 +1381,7 @@ pub fn apply_orders(
           rest_outputs,
         )
       }
-      StopLoss(a_to_b_direction, swap_amount_option, stop_loss_receive) -> {
+      StopLoss { a_to_b_direction, swap_amount_option, stop_loss_receive } -> {
         expect [output, ..rest_outputs] = all_outputs
         expect stop_loss_receive > 0
         (
@@ -1409,12 +1409,12 @@ pub fn apply_orders(
           rest_outputs,
         )
       }
-      OCO(
+      OCO {
         a_to_b_direction,
         swap_amount_option,
         minimum_receive,
         stop_loss_receive,
-      ) -> {
+      } -> {
         expect [output, ..rest_outputs] = all_outputs
         expect and {
             minimum_receive > 0,
@@ -1445,12 +1445,12 @@ pub fn apply_orders(
           rest_outputs,
         )
       }
-      SwapExactOut(
+      SwapExactOut {
         a_to_b_direction,
         maximum_swap_amount_option,
         expected_receive,
-        order_killable,
-      ) -> {
+        killable: order_killable,
+      } -> {
         expect [output, ..rest_outputs] = all_outputs
         expect expected_receive > 0
         (
@@ -1476,7 +1476,7 @@ pub fn apply_orders(
           rest_outputs,
         )
       }
-      Deposit(deposit_amount_option, minimum_lp, order_killable) -> {
+      Deposit { deposit_amount_option, minimum_lp, killable: order_killable } -> {
         expect [output, ..rest_outputs] = all_outputs
         expect minimum_lp > 0
         (
@@ -1502,12 +1502,12 @@ pub fn apply_orders(
           rest_outputs,
         )
       }
-      Withdraw(
+      Withdraw {
         withdrawal_amount_option,
         minimum_asset_a,
         minimum_asset_b,
-        order_killable,
-      ) -> {
+        killable: order_killable,
+      } -> {
         expect [output, ..rest_outputs] = all_outputs
         expect and {
             minimum_asset_a > 0,
@@ -1534,12 +1534,12 @@ pub fn apply_orders(
           rest_outputs,
         )
       }
-      ZapOut(
+      ZapOut {
         a_to_b_direction,
         withdrawal_amount_option,
         minimum_receive,
-        order_killable,
-      ) -> {
+        killable: order_killable,
+      } -> {
         expect [output, ..rest_outputs] = all_outputs
         expect minimum_receive > 0
         (
@@ -1566,7 +1566,7 @@ pub fn apply_orders(
           rest_outputs,
         )
       }
-      PartialSwap(
+      PartialSwap {
         a_to_b_direction,
         total_swap_amount,
         io_ratio_numerator,
@@ -1574,7 +1574,7 @@ pub fn apply_orders(
         hops,
         minimum_swap_amount_required,
         max_batcher_fee_each_time,
-      ) -> {
+      } -> {
         expect [output, ..rest_outputs] = all_outputs
         let Output { value: order_out_value, .. } = output
         expect and {
@@ -1663,13 +1663,13 @@ pub fn apply_orders(
           rest_outputs,
         )
       }
-      WithdrawImbalance(
+      WithdrawImbalance {
         withdrawal_amount_option,
         ratio_asset_a,
         ratio_asset_b,
         minimum_asset_a,
-        order_killable,
-      ) -> {
+        killable: order_killable,
+      } -> {
         expect [output, ..rest_outputs] = all_outputs
         expect and {
             ratio_asset_a > 0,
@@ -1712,13 +1712,13 @@ pub fn apply_orders(
           ),
           all_outputs,
         )
-      SwapMultiRouting(_, _, _) -> fail
-      // _ -> {
-      //   // trace @"Ord nt SwExtIn": 1
-      //   fail
-      // }
+      SwapMultiRouting { .. } -> fail
     }
 
+  // _ -> {
+  //   // trace @"Ord nt SwExtIn": 1
+  //   fail
+  // }
   when rest_inputs is {
     [] -> new_state
     _ ->

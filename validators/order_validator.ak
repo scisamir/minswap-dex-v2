@@ -31,7 +31,11 @@ validator order_validator(
   }
 
   // fn validate_order
-  withdraw(redeemer: OrderRedeemer, account: Credential, transaction: Transaction) {
+  withdraw(
+    redeemer: OrderRedeemer,
+    account: Credential,
+    transaction: Transaction,
+  ) {
     expect Script(own_hash) = account
 
     when redeemer is {
@@ -40,7 +44,6 @@ validator order_validator(
 
         // Test
         // trace @"is apply order triggered?": pairs.has_key(withdrawals, pool_batching_credential), True, False
-
         // validate that an Order can be spent if there's a `Order Batching` validator in the `withdrawals`
         pairs.has_key(withdrawals, pool_batching_credential)
       }
@@ -59,8 +62,8 @@ validator order_validator(
             |> list.find(
                 fn(input) {
                   or {
-                    Script(own_hash) == input.output.address.payment_credential,
-                    Some(Inline(Script(own_hash))) == input.output.address.stake_credential,
+                    (Script(own_hash) == input.output.address.payment_credential)?,
+                    (Some(Inline(Script(own_hash))) == input.output.address.stake_credential)?,
                   }
                 },
               )
@@ -68,6 +71,7 @@ validator order_validator(
           own_input
         let order_datum = utils.must_find_script_datum(datums, own_input_datum)
         expect OrderDatum { canceller, .. } = order_datum
+        trace @"canceller": canceller
         // Canceller can be one of 4 authorization methods
         utils.authorize_order_license(
           author: canceller,
@@ -75,7 +79,7 @@ validator order_validator(
           withdrawals: withdrawals,
           extra_signatories: extra_signatories,
           transaction_mint: mint,
-        )
+        )?
       }
       CancelExpiredOrderByAnyone -> {
         let Transaction { withdrawals, .. } = transaction
@@ -117,7 +121,7 @@ validator validate_expired_order_cancel {
             when stake_credential is {
               Some(Inline(Script(_))) -> True
               _ -> False
-            }
+            },
           }
         },
       )

@@ -1,5 +1,5 @@
-use aiken/builtin
 use aiken/collection/list
+use aiken/primitive/bytearray
 use amm_dex_v2/pool_validation
 use amm_dex_v2/types.{
   Asset, AuthenRedeemer, CreatePool, DexInitialization, FactoryDatum,
@@ -198,7 +198,7 @@ validator authen_minting_policy(
       global_setting_payment_credential
 
     expect Some(GlobalSetting { admin, .. }) = datum
-    let global_setting_output = outputs |> builtin.head_list
+    expect Some(global_setting_output) = list.head(outputs)
     let Output {
       value: global_setting_value_out,
       address: Address {
@@ -258,7 +258,7 @@ fn validate_global_setting(global_setting: GlobalSetting) -> Bool {
     validate_pool_authorization_method(pool_stake_key_updater),
     validate_pool_authorization_method(pool_dynamic_fee_updater),
     validate_pool_authorization_method(admin),
-    !builtin.null_list(batchers),
+    !list.is_empty(batchers),
     list.all(
       batchers,
       fn(batcher) { validate_pool_authorization_method(batcher) },
@@ -269,9 +269,9 @@ fn validate_global_setting(global_setting: GlobalSetting) -> Bool {
 fn validate_pool_authorization_method(method: PoolAuthorizationMethod) -> Bool {
   let hash =
     when method is {
-      PAMSignature(h) -> h
-      PAMSpendScript(h) -> h
-      PAMWithdrawScript(h) -> h
+      PAMSignature { pub_key_hash: h } -> h
+      PAMSpendScript { script_hash: h } -> h
+      PAMWithdrawScript { script_hash: h } -> h
     }
-  builtin.length_of_bytearray(hash) == 28
+  bytearray.length(hash) == 28
 }
