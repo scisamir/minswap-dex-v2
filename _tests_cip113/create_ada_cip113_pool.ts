@@ -2,7 +2,7 @@ import { mConStr0, mConStr1, stringToHex } from "@meshsdk/core";
 import { AdaAssetA, authenPolicyId, authenValidatorScript, blockchainProvider, calculateInitialLiquidity, factoryAddress, factoryAssetName, factoryValidatorScript, AdaTokenSupply, maxInt64, poolAuthAssetName, poolBatchingValidatorHash, poolValidatorAddress, AdaRemainingLiquidity, AdaTotalLiquidity, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, cip113ValidatorScript, cip113RewardAddress, usdcUnit, usdcSupply, usdcAssetB, usdcAdaLpAssetName, usdcCip113Balance, usdcCip113Utxo } from "./setup.js"
 
 // Authen
-const authenScriptTxHash = "0c667ca29e60e09c80dab8ebd8a6378c3b97b9a41021b710cd8af36fbe520503";
+const authenScriptTxHash = "590084db698d2ddbe909a31cf432080c796deef073c3d161051fe9b4c15c61c0";
 const authenScriptTxIndex = 0;
 // Factory
 // const factoryScriptTxHash = "";
@@ -45,6 +45,10 @@ const poolDatum = mConStr0([
     mConStr1([]),
     mConStr0([]), // ??
 ]);
+
+console.log("AdaTotalLiquidity:", AdaTotalLiquidity);
+console.log("AdaTokenSupply:", AdaTokenSupply);
+console.log("usdcSupply:", usdcSupply);
 
 console.log("usdcCip113Balance - usdcSupply:", usdcCip113Balance - usdcSupply);
 

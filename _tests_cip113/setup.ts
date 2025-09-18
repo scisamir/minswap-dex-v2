@@ -54,8 +54,8 @@ const wallet1 = new MeshWallet({
 const wallet1Address = await wallet1.getChangeAddress();
 
 const wallet1Utxos = await wallet1.getUtxos();
-const wallet1Collateral: UTxO = (await blockchainProvider.fetchUTxOs("cab914aca4fb11f8ed0d736915cc77a756a0b3abd8baebb2a39c734b60849c2e", 2))[0];
-// const wallet1Collateral: UTxO = (await wallet1.getCollateral())[0]
+// const wallet1Collateral: UTxO = (await blockchainProvider.fetchUTxOs("cab914aca4fb11f8ed0d736915cc77a756a0b3abd8baebb2a39c734b60849c2e", 2))[0];
+const wallet1Collateral: UTxO = (await wallet1.getCollateral())[0]
 if (!wallet1Collateral) {
     throw new Error('No collateral utxo found');
 }
@@ -157,8 +157,10 @@ const userCip113Addr = serializePlutusScript(
 const authenValidator = blueprint.validators.filter(v => (
     v.title.includes("authen_minting_policy.authen_minting_policy.mint")
 ));
-const dexInitParamTxHash = "af662d8505fe10362f49a89c02c0d190fc6d755481bbf490fd7b798df10ed010";  // change this and below on each dex init
-const dexInitParamTxIndex = 9;
+const dexInitParamTxHash = "67eb04953a7a72b6a35989631818bf17f5bb01122a4bbe691381c08b8a2626c4";  // change this and below on each dex init
+const dexInitParamTxIndex = 2;
+// const dexInitParamTxHash = "af662d8505fe10362f49a89c02c0d190fc6d755481bbf490fd7b798df10ed010";  // change this and below on each dex init
+// const dexInitParamTxIndex = 9;
 const authenValidatorScript = applyParamsToScript(
     authenValidator[0].compiledCode,
     [outputReference(dexInitParamTxHash, dexInitParamTxIndex)],
@@ -355,7 +357,7 @@ const AdaSwapAmount = 20000000;
 const orderLovelaceAmount = 10000000;
 
 // usdc cip113 utxo
-const usdcCip113Utxos = await blockchainProvider.fetchUTxOs("cab914aca4fb11f8ed0d736915cc77a756a0b3abd8baebb2a39c734b60849c2e", 0);
+const usdcCip113Utxos = await blockchainProvider.fetchUTxOs("67eb04953a7a72b6a35989631818bf17f5bb01122a4bbe691381c08b8a2626c4", 1);
 const usdcCip113Utxo = usdcCip113Utxos[0];
 if (!usdcCip113Utxo) {
     throw new Error("usdcCip113Utxo not found");
