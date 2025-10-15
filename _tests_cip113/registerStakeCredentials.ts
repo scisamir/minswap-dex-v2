@@ -2,6 +2,12 @@ import { cip113RewardAddress, orderCanclValidatorRewardAddress, orderValidatorRe
 
 // withdraw zero setup (register all stake cert) - Merged
 const unsignedTx = await txBuilder
+    // .txIn(
+    //     wallet1Utxos[0].input.txHash,
+    //     wallet1Utxos[0].input.outputIndex,
+    //     wallet1Utxos[0].output.amount,
+    //     wallet1Utxos[0].output.address,
+    // )
     .registerStakeCertificate(orderValidatorRewardAddress)
     // .registerStakeCertificate(orderCanclValidatorRewardAddress)
     .registerStakeCertificate(poolValidatorRewardAddress)

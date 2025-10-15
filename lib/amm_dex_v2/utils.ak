@@ -232,6 +232,19 @@ test test_list_at_index() {
   True
 }
 
+// test test_list_at_index_my() {
+//   let arr =
+//     [
+//       #"96cbb27c96daf8cab890de6d7f87f5ffd025bf8ac80717cbc4fae7da",
+//       #"00fc7385d20b7992bee4d40c119e06211e79eebe1bb4bf5b04a21b2e",
+//     ]
+//   // expect
+//   //   list_at_index(arr, 0) == #"96cbb27c96daf8cab890de6d7f87f5ffd025bf8ac80717cbc4fae7da"
+//   expect
+//     list_at_index(arr, 1) == #"00fc7385d20b7992bee4d40c119e06211e79eebe1bb4bf5b04a21b2e"
+//   True
+// }
+
 pub fn zip_with(
   arr1: List<a>,
   arr2: List<b>,

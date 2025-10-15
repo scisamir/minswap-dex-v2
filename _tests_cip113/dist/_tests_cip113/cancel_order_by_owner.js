@@ -1,7 +1,8 @@
 import { mConStr1 } from "@meshsdk/core";
 import { blockchainProvider, orderValidatorScript, orderValidatorAddress, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK, orderValidatorRewardAddress, cip113ValidatorScript, cip113RewardAddress, userCip113Addr } from "./setup.js";
 // console.log("orderValidatorAddress:", orderValidatorAddress);
-const orderUtxo = (await blockchainProvider.fetchAddressUTxOs(orderValidatorAddress))[0];
+const orderUtxos = await blockchainProvider.fetchAddressUTxOs(orderValidatorAddress);
+const orderUtxo = orderUtxos[orderUtxos.length - 1];
 if (!orderUtxo) {
     throw new Error("order utxo not found!");
 }

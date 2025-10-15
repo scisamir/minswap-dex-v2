@@ -1,5 +1,5 @@
-import { deserializeAddress, serializePlutusScript, stringToHex } from "@meshsdk/core";
-import { blockchainProvider, cip113RewardAddress, cip113ValidatorHash, cip113ValidatorScript, wallet1VK } from "./setup.js";
+import { serializePlutusScript, stringToHex } from "@meshsdk/core";
+import { blockchainProvider, cip113RewardAddress, cip113ValidatorHash, cip113ValidatorScript, lorenzoSmartAddr, lorenzoVK, wallet1VK } from "./setup.js";
 // const compiledCode = cip113Validator[0].compiledCode;
 // export function get_cip113_script() {
 //   const scriptCbor = applyParamsToScript(
@@ -47,10 +47,9 @@ const senderSmartAddr = serializePlutusScript({ code: scriptCbor, version: "V3" 
 //   wallet2VK,
 //   0,
 // ).address;
-const lorenzoAddress = "addr_test1qqq0cuu96g9hny47un2qcyv7qcs3u70whcdmf06mqj3pkt4wckwszdqepz35tf5h4h9mkce2p4hf3wj239pwhxswwkcq7p5gst";
-const { pubKeyHash: lorenzoVK } = deserializeAddress(lorenzoAddress);
-const lorenzoSmartAddr = serializePlutusScript({ code: scriptCbor, version: "V3" }, lorenzoVK, 0).address;
-// console.log("senderSmartAddr:", senderSmartAddr);
+console.log("cip113ValidatorHash:", cip113ValidatorHash);
+console.log("lorenzoVK:", lorenzoVK);
+console.log("lorenzoSmartAddr:", lorenzoSmartAddr);
 const assetNameHex = stringToHex("realUSDC");
 const assetUnit = policy + assetNameHex;
 const cip113AddrUtxos = await blockchainProvider.fetchAddressUTxOs(senderSmartAddr);

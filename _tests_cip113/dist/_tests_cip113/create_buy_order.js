@@ -22,6 +22,7 @@ const orderDatum = mConStr0([
     6000000, // max_batcher_fee: 6 ADA
     mConStr1([]), // mConStr0([[(Date.now() + (10 * 60 * 1000)), 0]]), // 10 mins exp time; tip 0
 ]);
+console.log("usdcAdaLpAssetName:", usdcAdaLpAssetName);
 const unsignedTx = await txBuilder
     .txOut(orderValidatorAddress, [
     { unit: "lovelace", quantity: String(orderLovelaceAmount + AdaSwapAmount) }, // batcher fee is deducted from here

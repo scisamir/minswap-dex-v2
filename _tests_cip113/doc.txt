@@ -1,34 +1,41 @@
-Dex initialization:
-    3221eec663d390df0a4155aa98b8a6c3d298ae5f2a6bb79649d963bc5d5340b2
-
-Pool Creation:
-    1e768a1fe3d4a569cad04dc6eace36d6bd6883a85843a2d04a27be102fb458d5
-
-REGISTER STAKE CREDENTIALS:
-    
-
-Create Order:
-    (Buy)
-    (Sell)
-Process Order (Batching):
-    ---------------------------------------------------------------- (Buy)
-    (Sell)
-Cancel order:
-    (Buy)
-    ---------------------------------------------------------------- (Sell)
-
-
-
-// Restarting (For batching transaction)
+---------------------DOC-----------------------
+----------Restarting Protocol Afresh-----------
 - Replace dex.. txhash and idx with new utxo
 - dex Init
 - save authen minting validator -> replace hash in `create_pool.ts`
 - replace cip113 realUSD utxo tx hash in `setup.ts`
 - create pool
-- create order (Sell order? First update cip113 token utxo in setup.ts)
 - register all stake credentials
+- create order (Sell order? First update cip113 token utxo in setup.ts)
 - save all batching related validator -> replace hashes in `batching.ts`
 - submit batching transaction
+
+
+Create buy order tx hash: 44a173af2e722969c9a149931b33399335b16a4ee5b2d83d43edc02f13196e8c
+
+
+
+Dex initialization:
+    4a4c913e8100f6240301dd2be12cd268cff81f3cb16e25a26a80634264272484
+
+Pool Creation:
+    1e13926e96f83ff337183db1313ce2d5f597b80e069139d03ece97542fd64a5f
+
+REGISTER STAKE CREDENTIALS:
+    5decfac3b707ac965419f2247866f0a71457ddda69d831edcb2bbd622f01777a
+
+Create Order:
+    538d28ee0dcfe368258c7e40adb184b7830b4fbb41777e4790de6cc1de8a6c85 (Buy)
+    02bb51c98a71a4ec0bc3af1fa2c2f5c7435caeb9addd5f57a25dc35b10d579c8 (Buy)
+    (Sell)
+Process Order (Batching):
+    (Buy)
+    ---------------------------------------------------------------- (Buy)
+    (Sell)
+Cancel order:
+    636b5020078de28b5cb698944acbc13a65096ba7798afc6f716770678d64c51c (Buy)
+    ---------------------------------------------------------------- (Sell)
+
 
 
 // Review

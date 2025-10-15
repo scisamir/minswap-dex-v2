@@ -1,5 +1,5 @@
 import { applyParamsToScript, deserializeAddress, resolveScriptHash, serializePlutusScript, serializeRewardAddress, stringToHex } from "@meshsdk/core";
-import { alwaysSuccessMintValidatorHash, blockchainProvider, cip113RewardAddress, cip113Validator, cip113ValidatorHash, cip113ValidatorScript, orderValidatorAddress, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK, wallet2VK } from "./setup.js";
+import { alwaysSuccessMintValidatorHash, blockchainProvider, cip113RewardAddress, cip113Validator, cip113ValidatorHash, cip113ValidatorScript, lorenzoSmartAddr, lorenzoVK, orderValidatorAddress, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK, wallet2VK } from "./setup.js";
 
 // const compiledCode = cip113Validator[0].compiledCode;
 
@@ -61,15 +61,10 @@ const senderSmartAddr = serializePlutusScript(
 //   wallet2VK,
 //   0,
 // ).address;
-const lorenzoAddress = "addr_test1qqq0cuu96g9hny47un2qcyv7qcs3u70whcdmf06mqj3pkt4wckwszdqepz35tf5h4h9mkce2p4hf3wj239pwhxswwkcq7p5gst";
-const { pubKeyHash: lorenzoVK } = deserializeAddress(lorenzoAddress);
-const lorenzoSmartAddr = serializePlutusScript(
-  { code: scriptCbor, version: "V3" },
-  lorenzoVK,
-  0,
-).address;
 
-// console.log("senderSmartAddr:", senderSmartAddr);
+console.log("cip113ValidatorHash:", cip113ValidatorHash);
+console.log("lorenzoVK:", lorenzoVK);
+console.log("lorenzoSmartAddr:", lorenzoSmartAddr);
 
 const assetNameHex = stringToHex("realUSDC");
 const assetUnit = policy + assetNameHex;

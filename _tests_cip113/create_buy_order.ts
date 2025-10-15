@@ -24,6 +24,8 @@ const orderDatum = mConStr0([
     mConStr1([]), // mConStr0([[(Date.now() + (10 * 60 * 1000)), 0]]), // 10 mins exp time; tip 0
 ]);
 
+console.log("usdcAdaLpAssetName:", usdcAdaLpAssetName);
+
 const unsignedTx = await txBuilder
     .txOut(
         orderValidatorAddress,

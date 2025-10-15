@@ -54,8 +54,8 @@ const wallet1 = new MeshWallet({
 const wallet1Address = await wallet1.getChangeAddress();
 
 const wallet1Utxos = await wallet1.getUtxos();
-// const wallet1Collateral: UTxO = (await blockchainProvider.fetchUTxOs("cab914aca4fb11f8ed0d736915cc77a756a0b3abd8baebb2a39c734b60849c2e", 2))[0];
-const wallet1Collateral: UTxO = (await wallet1.getCollateral())[0]
+// const wallet1Collateral: UTxO = (await blockchainProvider.fetchUTxOs("3c0d66f3568e85d246d3813157badef6857e9d181cb94c1ac9cf8da3accacb9a", 12))[0];
+const wallet1Collateral: UTxO = (await wallet1.getCollateral())[0];
 if (!wallet1Collateral) {
     throw new Error('No collateral utxo found');
 }
@@ -157,10 +157,11 @@ const userCip113Addr = serializePlutusScript(
 const authenValidator = blueprint.validators.filter(v => (
     v.title.includes("authen_minting_policy.authen_minting_policy.mint")
 ));
-const dexInitParamTxHash = "67eb04953a7a72b6a35989631818bf17f5bb01122a4bbe691381c08b8a2626c4";  // change this and below on each dex init
-const dexInitParamTxIndex = 2;
-// const dexInitParamTxHash = "af662d8505fe10362f49a89c02c0d190fc6d755481bbf490fd7b798df10ed010";  // change this and below on each dex init
-// const dexInitParamTxIndex = 9;
+// const dexInitParamTxHash = "8744e13355f1eceb89fbde7cd7e9648adff809e105d06db38b2960279bbe5616";  // change this and below on each dex init
+// const dexInitParamTxIndex = 1;
+// Working version
+const dexInitParamTxHash = "af662d8505fe10362f49a89c02c0d190fc6d755481bbf490fd7b798df10ed010";  // change this and below on each dex init
+const dexInitParamTxIndex = 9;
 const authenValidatorScript = applyParamsToScript(
     authenValidator[0].compiledCode,
     [outputReference(dexInitParamTxHash, dexInitParamTxIndex)],
@@ -353,19 +354,19 @@ const AdaRemainingLiquidity = maxInt64 - (BigInt(AdaTotalLiquidity) - 10n);
 
 // order utils
 const swapAmount = 20;
-const AdaSwapAmount = 20000000;
-const orderLovelaceAmount = 10000000;
+const AdaSwapAmount = 50000000;
+// const AdaSwapAmount = 20000000;
+// const orderLovelaceAmount = 10000000;
+const orderLovelaceAmount = 7800000;
 
 // usdc cip113 utxo
-const usdcCip113Utxos = await blockchainProvider.fetchUTxOs("67eb04953a7a72b6a35989631818bf17f5bb01122a4bbe691381c08b8a2626c4", 1);
+const usdcCip113Utxos = await blockchainProvider.fetchUTxOs("e461f1cb6f800a7d33fe45ee016d252397ba4a61412596b0e89c4fddbdc8e81f", 2);
 const usdcCip113Utxo = usdcCip113Utxos[0];
 if (!usdcCip113Utxo) {
     throw new Error("usdcCip113Utxo not found");
 }
 const usdcCip113Balance = Number(usdcCip113Utxo.output.amount[1].quantity)
 console.log("usdcCip113Balance:", usdcCip113Balance);
-
-
 
 // console.log("orderValidatorScriptHash", orderValidatorScriptHash);
 // console.log("poolBatchingValidatorHash", poolBatchingValidatorHash);
@@ -376,6 +377,16 @@ console.log("usdcCip113Balance:", usdcCip113Balance);
 // console.log("userCip113Addr:", userCip113Addr);
 
 // console.log("wallet1VK:", wallet1VK);
+
+const lorenzoAddress = "addr_test1qqq0cuu96g9hny47un2qcyv7qcs3u70whcdmf06mqj3pkt4wckwszdqepz35tf5h4h9mkce2p4hf3wj239pwhxswwkcq7p5gst";
+const { pubKeyHash: lorenzoVK } = deserializeAddress(lorenzoAddress);
+const lorenzoSmartAddr = serializePlutusScript(
+  { code: cip113ValidatorScript, version: "V3" },
+  lorenzoVK,
+  0,
+).address;
+
+console.log(cip113ValidatorHash, lorenzoVK);
 
 export {
     blueprint,
@@ -461,4 +472,7 @@ export {
     AdaLpAssetName,
     AdaRemainingLiquidity,
     AdaTotalLiquidity,
+    // others
+    lorenzoVK,
+    lorenzoSmartAddr,
 }
