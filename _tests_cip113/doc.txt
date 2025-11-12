@@ -11,30 +11,67 @@
 - submit batching transaction
 
 
-Create buy order tx hash: 44a173af2e722969c9a149931b33399335b16a4ee5b2d83d43edc02f13196e8c
+
+
+Update global settings tx hash: 8549091accf2c69b97f11374cd5e56ba2a5e84c7107a15dd9a52b029ef825021
+
+
+
+
 
 
 
 Dex initialization:
-    4a4c913e8100f6240301dd2be12cd268cff81f3cb16e25a26a80634264272484
+    
 
 Pool Creation:
-    1e13926e96f83ff337183db1313ce2d5f597b80e069139d03ece97542fd64a5f
+    
 
 REGISTER STAKE CREDENTIALS:
-    5decfac3b707ac965419f2247866f0a71457ddda69d831edcb2bbd622f01777a
+    
 
 Create Order:
-    538d28ee0dcfe368258c7e40adb184b7830b4fbb41777e4790de6cc1de8a6c85 (Buy)
-    02bb51c98a71a4ec0bc3af1fa2c2f5c7435caeb9addd5f57a25dc35b10d579c8 (Buy)
+    (Buy)
+    (Buy)
     (Sell)
 Process Order (Batching):
     (Buy)
     ---------------------------------------------------------------- (Buy)
     (Sell)
 Cancel order:
-    636b5020078de28b5cb698944acbc13a65096ba7798afc6f716770678d64c51c (Buy)
+    (Buy)
     ---------------------------------------------------------------- (Sell)
+
+
+
+
+
+Dex initialization:
+    c95eec3ed07aaf6dc2290cbceb9dfa88c4b7b9348a11a90cc8adfc3bd04f335d
+
+Pool Creation:
+    660776acf4d02610d0f6257067bbd12101fd18b64d11a7d832cff54b2dffca1c
+
+REGISTER STAKE CREDENTIALS:
+    d3473edc08e74959e2412d610acfb561afe2404c594770c05c6a0c75191dc574
+
+Create Order:
+    996ebf5647b71d851bea6df4741982cac84d12c0eeb75a7547ae33aba9ca5f06 (Buy)
+    40c8d61618c00589599bf2f91b162bae4b490f1a92f79faaa050c2f7523bb26b (Buy)
+    (Sell)
+Process Order (Batching):
+    860c9dc959bdbf6fc40073436ae21eaccf798455cecaa349dcfc57168e399190 (Buy)
+    ---------------------------------------------------------------- (Buy)
+    (Sell)
+Cancel order:
+    (Buy)
+    ---------------------------------------------------------------- (Sell)
+Update global settings tx hash: 40a6321e8a7c57ed9721d4c17f7bc702753348b72f82c92e080377eeb9eab341
+
+
+
+
+
 
 
 
@@ -196,3 +233,81 @@ REGISTER ALL STAKE CREDENTIALS:
     58b43e13866b71481b19c6a0c1a6ad89b799ee5cad6c4bb1dc043caf232e91df
 REGISTER ALL STAKE CREDENTIALS (Necessary validators for batching transaction):
     681643cf20f36fd3853cd7bdba922163d4fe0718c51b3c836d724ac3153d44b3
+
+
+
+
+
+
+-----------------Pool Batching Aiken Debuggin Code-----------------
+validator pool_batching_validator(
+  // The PolicyID of Authen Minting Policy
+  authen_policy_id: PolicyId,
+  // The Address of Pool Validator
+  pool_address: Address,
+) {
+  // fn validate_pool_batching
+  withdraw(
+    // _redeemer: Data,
+    redeemer: PoolBatchingRedeemer,
+    _stake_credential: Credential,
+    transaction: Transaction,
+  ) {
+    let Transaction {
+      inputs,
+      outputs,
+      datums,
+      validity_range,
+      mint,
+      reference_inputs,
+      extra_signatories,
+      withdrawals,
+      ..
+    } = transaction
+    let PoolBatchingRedeemer {
+      batcher_index,
+      orders_fee,
+      input_indexes,
+      pool_input_indexes_opt,
+      vol_fees,
+    } = redeemer
+
+    let test_addr =
+      Address {
+        payment_credential: VerificationKey(""),
+        stake_credential: None,
+      }
+    let is_params_true = and {
+        (authen_policy_id != #"96cbb27c96daf8cab890de6d7f87f5ffd025bf8ac80717cbc4fae7da")?,
+        (pool_address != test_addr)?,
+      }
+
+    let is_tx_true = and {
+        (inputs != [])?,
+        (outputs != [])?,
+        (validity_range != transaction.placeholder.validity_range)?,
+        (reference_inputs != [])?,
+        (extra_signatories != [])?,
+        (withdrawals != [])?,
+        (mint == assets.zero)?,
+      }
+
+    let is_batcher_redeemer_true = and {
+        (batcher_index != -1)?,
+        (orders_fee != [])?,
+        (input_indexes != "")?,
+        option.is_none(pool_input_indexes_opt)?,
+        (vol_fees != [])?,
+      }
+
+    trace @"datums": dict.to_pairs(datums)
+    expect is_params_true
+    expect is_tx_true
+    expect is_batcher_redeemer_true
+    True
+  }
+
+  else(_) {
+    fail
+  }
+}

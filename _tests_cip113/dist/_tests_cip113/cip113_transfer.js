@@ -36,11 +36,11 @@ const { scriptCbor, scriptAddr, policy, rewardAddress } = {
 // const txHash = await wallet1.submitTx(signedTx);
 // console.log("register cip113 stake certificate tx hash:", txHash);
 // register cip113 stake certificate tx hash: c65ca3f6684fcac440417fcff8ff887ba349ff6de30327b428a908cb6c1f4008
-const cip113Utxo = (await blockchainProvider.fetchUTxOs("cab914aca4fb11f8ed0d736915cc77a756a0b3abd8baebb2a39c734b60849c2e", 0))[0];
-if (!cip113Utxo) {
-    throw new Error("Could not fetch cip113 utxo");
-}
-console.log("cip113Utxo:", cip113Utxo);
+// const cip113Utxo = (await blockchainProvider.fetchUTxOs("cab914aca4fb11f8ed0d736915cc77a756a0b3abd8baebb2a39c734b60849c2e", 0))[0];
+// if (!cip113Utxo) {
+//   throw new Error("Could not fetch cip113 utxo");
+// }
+// console.log("cip113Utxo:", cip113Utxo);
 const senderSmartAddr = serializePlutusScript({ code: scriptCbor, version: "V3" }, wallet1VK, 0).address;
 // const receiverSmartAddr = serializePlutusScript(
 //   { code: scriptCbor, version: "V3" },

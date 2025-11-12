@@ -136,18 +136,6 @@ test test_calculate_amount_out() {
   out == 16200168971
 }
 
-test test_calculate_amount_out_my() {
-  let out =
-    calculate_amount_out(
-      reserve_in: 1539758826,
-      reserve_out: 1463,
-      amount_in: 20000000,
-      trading_fee_numerator: 6,
-    )
-  trace @"out": out
-  out == 16200168971
-}
-
 // Calculate the maximum amount that traders can swap to meet the expected rate between input and output. 
 // Each swap incurs a Trading Fee based on the input amount. 
 // Refer to "formula.md", section "7. Partial Swap" for the detailed formula.

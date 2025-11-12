@@ -1,4 +1,4 @@
-import { deserializeAddress, mConStr0 } from "@meshsdk/core";
+import { mConStr0 } from "@meshsdk/core";
 import { authenAddress, authenPolicyId, authenValidatorScript, blockchainProvider, dexInitParamTxHash, dexInitParamTxIndex, factoryAddress, factoryAssetName, globalSettingAssetName, lorenzoVK, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK } from "./setup.js"
 
 const factoryNftUnit = authenPolicyId + factoryAssetName;
@@ -12,8 +12,8 @@ const globalSettingNftUnit = authenPolicyId + globalSettingAssetName;
 const poolAuthorizationMethod = mConStr0([wallet1VK]);
 const lorenzoAuthMethod = mConStr0([lorenzoVK]);
 
+// [poolAuthorizationMethod],
 const globalSettingDatum = mConStr0([
-    // [poolAuthorizationMethod],
     [poolAuthorizationMethod, lorenzoAuthMethod],
     poolAuthorizationMethod,
     poolAuthorizationMethod,

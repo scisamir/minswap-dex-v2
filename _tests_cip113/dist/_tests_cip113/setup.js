@@ -88,7 +88,7 @@ const txBuilder = new MeshTxBuilder({
     submitter: blockchainProvider,
     evaluator: evaluator, // Can also be "evaluator: blockchainProvider,"
     // evaluator: blockchainProvider,
-    // verbose: true,
+    verbose: true,
 });
 txBuilder.setNetwork('preview');
 // constants
@@ -116,7 +116,7 @@ const cip113RewardAddress = serializeRewardAddress(cip113ValidatorHash, true, 0)
 const userCip113Addr = serializePlutusScript({ code: cip113ValidatorScript, version: "V3" }, wallet1VK, 0).address;
 // Authen Minting Policy
 const authenValidator = blueprint.validators.filter(v => (v.title.includes("authen_minting_policy.authen_minting_policy.mint")));
-// const dexInitParamTxHash = "8744e13355f1eceb89fbde7cd7e9648adff809e105d06db38b2960279bbe5616";  // change this and below on each dex init
+// const dexInitParamTxHash = "40c8d61618c00589599bf2f91b162bae4b490f1a92f79faaa050c2f7523bb26b";  // change this and below on each dex init
 // const dexInitParamTxIndex = 1;
 // Working version
 const dexInitParamTxHash = "af662d8505fe10362f49a89c02c0d190fc6d755481bbf490fd7b798df10ed010"; // change this and below on each dex init
@@ -222,11 +222,9 @@ const AdaRemainingLiquidity = maxInt64 - (BigInt(AdaTotalLiquidity) - 10n);
 // order utils
 const swapAmount = 20;
 const AdaSwapAmount = 50000000;
-// const AdaSwapAmount = 20000000;
-// const orderLovelaceAmount = 10000000;
 const orderLovelaceAmount = 7800000;
 // usdc cip113 utxo
-const usdcCip113Utxos = await blockchainProvider.fetchUTxOs("e461f1cb6f800a7d33fe45ee016d252397ba4a61412596b0e89c4fddbdc8e81f", 2);
+const usdcCip113Utxos = await blockchainProvider.fetchUTxOs("d3412183ee119ba75f7da7b6aa9b447c6480b3ec28777bfa60c2258e5c4c0d15", 2);
 const usdcCip113Utxo = usdcCip113Utxos[0];
 if (!usdcCip113Utxo) {
     throw new Error("usdcCip113Utxo not found");

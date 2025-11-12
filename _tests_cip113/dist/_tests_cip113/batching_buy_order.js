@@ -1,13 +1,13 @@
-import { deserializeDatum, mConStr0, mConStr1, SLOT_CONFIG_NETWORK, unixTimeToEnclosingSlot } from "@meshsdk/core";
-import { cip113ValidatorScript, AdaAssetA, authenAddress, authenPolicyId, blockchainProvider, orderLovelaceAmount, orderValidatorAddress, orderValidatorRewardAddress, orderValidatorScriptHash, poolAuthAssetName, poolBatchingValidatorHash, poolBatchingValidatorRewardAddress, poolValidatorAddress, poolValidatorRewardAddress, poolValidatorScriptHash, AdaRemainingLiquidity, AdaSwapAmount, AdaTotalLiquidity, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK, cip113RewardAddress, usdcUnit, usdcAdaLpAssetName, usdcAssetB, lorenzoSmartAddr } from "./setup.js";
-// // pool batching ref script
-// const poolBatchingScriptTxHash = "2f1f978780f1ed0f9c8de9127fb4f376319d5dc31c0cdaf225561dc4c84ed450";
+import { deserializeDatum, mConStr0, mConStr1, serializeAddressObj, SLOT_CONFIG_NETWORK, unixTimeToEnclosingSlot } from "@meshsdk/core";
+import { cip113ValidatorScript, AdaAssetA, authenAddress, authenPolicyId, blockchainProvider, orderValidatorAddress, orderValidatorRewardAddress, orderValidatorScriptHash, poolAuthAssetName, poolBatchingValidatorHash, poolBatchingValidatorRewardAddress, poolValidatorAddress, poolValidatorRewardAddress, poolValidatorScriptHash, AdaRemainingLiquidity, AdaTotalLiquidity, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK, cip113RewardAddress, usdcUnit, usdcAdaLpAssetName, usdcAssetB, lorenzoSmartAddr } from "./setup.js";
+// // // pool batching ref script
+// const poolBatchingScriptTxHash = "50af6f665873e12b6896768b57f623f5f0f105a158f46beeb0166022866a4fd7";
 // const poolBatchingScriptTxIndex = 0;
 // // pool ref script
-// const poolScriptTxHash = "71ed9bb4b853e3e8a21c1ed93df58ea7c1b3996afa1e0cf39ed18108c4d1d2ac";
+// const poolScriptTxHash = "84b63258348f3b0e132da52df8247309c9e1042ddfdb62e1ec452398b0c21ddd";
 // const poolScriptTxIndex = 0;
 // // order ref script
-// const orderScriptTxHash = "6b66d721a610f07bb5e7fd77f3341f96588565af92b5b2ab068593256c68981b";
+// const orderScriptTxHash = "3385e191e204e6f7ba1facfaa63c2c062d4bd1ff18405bb27031ad137b6a96c6";
 // const orderScriptTxIndex = 0;
 // -------------Working hashes----------------
 // pool batching ref script
@@ -26,7 +26,8 @@ if (!poolUtxo) {
     throw new Error("pool utxo not found!");
 }
 const orderUtxos = await blockchainProvider.fetchAddressUTxOs(orderValidatorAddress);
-const orderUtxo = orderUtxos[orderUtxos.length - 1];
+// const orderUtxo = orderUtxos[7];
+const orderUtxo = orderUtxos[orderUtxos.length - 2];
 if (!orderUtxo) {
     throw new Error("order utxo not found!");
 }
@@ -34,18 +35,33 @@ const globalSettingsUtxo = (await blockchainProvider.fetchAddressUTxOs(authenAdd
 if (!globalSettingsUtxo) {
     throw new Error("global settings utxo not found!");
 }
+const orderPlutusData = orderUtxo.output.plutusData;
+if (!orderPlutusData)
+    throw new Error('Invalid order');
+const orderDatum = deserializeDatum(orderPlutusData);
+console.log('\n');
+console.log("Order Utxo:", orderUtxo);
+const isBuyOrder = Number(orderDatum.fields[6].fields[0].constructor) === 1 ? true : false;
+if (!isBuyOrder)
+    throw new Error('Not a buy order!');
+const orderSwapAmount = Number(orderDatum.fields[6].fields[1].fields[0].int);
+const orderBalance = 5000000;
+const orderReceiverAddr = serializeAddressObj(orderDatum.fields[3]);
+console.log("orderSwapAmount:", orderSwapAmount);
+console.log("orderReceiverAddr:", orderReceiverAddr, '\n');
 // const usedBatcherFee = 3000000;
 const usedBatcherFee = 2800000; // -> changes here
+// const poolBatchingRedeemer = "";
 const poolBatchingRedeemer = mConStr0([
-    0,
+    0, // batcher index
     [usedBatcherFee], // used_batcher_fee, first index: 3 ADA
     "00", // minswap used "00"
     mConStr1([]),
     [mConStr1([])] // [mConStr0([6])],
 ]);
 // order output value
-const orderLovelaceBalance = orderLovelaceAmount - usedBatcherFee;
-console.log("orderLovelaceBalance", orderLovelaceBalance);
+// const orderLovelaceBalance = orderLovelaceAmount - usedBatcherFee;
+// console.log("orderLovelaceBalance", orderLovelaceBalance);
 // const assetBAmount = 19; // pre-calculated on chain (just for testing)
 const calculate_amount_out = (reserve_in, reserve_out, amount_in, trading_fee_numerator) => {
     const default_fee_denominator = 10000;
@@ -62,10 +78,11 @@ const oldPoolDatum = deserializeDatum(poolUtxo.output.plutusData); // ideal way 
 const oldPoolAdaTokenSupply = oldPoolDatum.fields[4].int;
 const oldPoolUsdcSupply = oldPoolDatum.fields[5].int;
 const base_fee_a_numerator = 6;
-// const assetBAmountTest = calculate_amount_out(oldPoolAdaTokenSupply, oldPoolUsdcSupply, 20000000, base_fee_a_numerator);
-const assetBAmount = calculate_amount_out(oldPoolAdaTokenSupply, oldPoolUsdcSupply, AdaSwapAmount, base_fee_a_numerator);
+// const assetBAmount = calculate_amount_out(oldPoolAdaTokenSupply, oldPoolUsdcSupply, 15000000, base_fee_a_numerator);
+const assetBAmount = calculate_amount_out(oldPoolAdaTokenSupply, oldPoolUsdcSupply, orderSwapAmount, base_fee_a_numerator);
+console.log("assetBAmount:", assetBAmount);
 // updated pool datum (calculated updated reserves based on A -> B order direction)
-const updatedAdaTokenSupply = oldPoolAdaTokenSupply + AdaSwapAmount;
+const updatedAdaTokenSupply = oldPoolAdaTokenSupply + orderSwapAmount;
 const updatedUsdcSupply = oldPoolUsdcSupply - assetBAmount;
 console.log("updatedAdaTokenSupply:", updatedAdaTokenSupply);
 console.log("updatedUsdcSupply:", updatedUsdcSupply);
@@ -133,9 +150,9 @@ const unsignedTx = await txBuilder
     .withdrawalRedeemerValue(poolBatchingRedeemer)
     // .withdrawalRedeemerValue(poolBatchingRedeemer, "Mesh", { mem: rMem, steps: rSteps })
     // order output
-    // .txOut(userCip113Addr, [
-    .txOut(lorenzoSmartAddr, [
-    { unit: "lovelace", quantity: String(orderLovelaceBalance) },
+    // .txOut(lorenzoSmartAddr, [
+    .txOut(orderReceiverAddr, [
+    { unit: "lovelace", quantity: String(orderBalance) },
     { unit: usdcUnit, quantity: String(assetBAmount) }
 ])
     // pool validator output

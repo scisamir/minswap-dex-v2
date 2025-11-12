@@ -8,8 +8,8 @@ const factoryDatum = mConStr0([
 const globalSettingNftUnit = authenPolicyId + globalSettingAssetName;
 const poolAuthorizationMethod = mConStr0([wallet1VK]);
 const lorenzoAuthMethod = mConStr0([lorenzoVK]);
+// [poolAuthorizationMethod],
 const globalSettingDatum = mConStr0([
-    // [poolAuthorizationMethod],
     [poolAuthorizationMethod, lorenzoAuthMethod],
     poolAuthorizationMethod,
     poolAuthorizationMethod,
