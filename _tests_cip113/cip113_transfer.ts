@@ -112,6 +112,7 @@ for (let i = 0; i < cip113AddrUtxos.length; i++) {
 
 // console.log("order utxos:", (await blockchainProvider.fetchAddressUTxOs(orderValidatorAddress)));
 // console.log("orderValidatorAddress:", orderValidatorAddress);
+console.log("senderSmartAddr:", senderSmartAddr);
 
 // Mint CIP 113 tokens
 // const unsignedTx = await txBuilder

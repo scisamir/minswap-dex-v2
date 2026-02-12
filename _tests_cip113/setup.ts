@@ -71,7 +71,7 @@ const wallet1Utxos = await wallet1.getUtxos();
 const wallet1Collateral: UTxO = wallet1Utxos.filter(
   (utxo) =>
     Number(utxo.output.amount[0].quantity) >= 7000000 &&
-    utxo.output.amount.length <= 4
+    utxo.output.amount.length === 1
 )[0];
 if (!wallet1Collateral) {
   throw new Error("No collateral utxo found 1");

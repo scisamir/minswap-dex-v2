@@ -1,5 +1,5 @@
 import { deserializeDatum, mConStr0, mConStr1, serializeAddressObj, SLOT_CONFIG_NETWORK, unixTimeToEnclosingSlot, } from "@meshsdk/core";
-import { cip113ValidatorScript, AdaAssetA, authenAddress, authenPolicyId, blockchainProvider, orderLovelaceAmount, orderValidatorAddress, orderValidatorRewardAddress, orderValidatorScriptHash, poolAuthAssetName, poolBatchingValidatorHash, poolBatchingValidatorRewardAddress, poolValidatorAddress, poolValidatorRewardAddress, poolValidatorScriptHash, AdaRemainingLiquidity, AdaTotalLiquidity, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK, cip113RewardAddress, usdcUnit, usdcAdaLpAssetName, usdcAssetB, lorenzoSmartAddr, } from "./setup.js";
+import { cip113ValidatorScript, AdaAssetA, authenAddress, authenPolicyId, blockchainProvider, orderLovelaceAmount, orderValidatorAddress, orderValidatorRewardAddress, orderValidatorScriptHash, poolAuthAssetName, poolBatchingValidatorHash, poolBatchingValidatorRewardAddress, poolValidatorAddress, poolValidatorRewardAddress, poolValidatorScriptHash, AdaRemainingLiquidity, AdaTotalLiquidity, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK, cip113RewardAddress, usdcUnit, usdcAdaLpAssetName, usdcAssetB, lorenzoSmartAddr, NETWORK_ID, } from "./setup.js";
 // -------------Working hashes---------------- (Preview)
 // pool batching ref script
 // const poolBatchingScriptTxHash = "85e83c7cab230207f913245a43c9c25efaa9124a69e6116cb2bb6d966364ab2a";
@@ -28,10 +28,10 @@ import { cip113ValidatorScript, AdaAssetA, authenAddress, authenPolicyId, blockc
 const poolBatchingScriptTxHash = "c3e7559ed8c00d25ccaff20b485dd4573843070ae96b25d2ce2b0b65c8c03d8c";
 const poolBatchingScriptTxIndex = 0;
 // pool ref script
-const poolScriptTxHash = "";
+const poolScriptTxHash = "47e405c8fe12fa891b01497658796be1317dea037647f4361daca39a7f33db82";
 const poolScriptTxIndex = 0;
 // order ref script
-const orderScriptTxHash = "";
+const orderScriptTxHash = "271af0b304ec2cac2e02f96d0557a71f529a087e8aeb2a22b35ec53256dd366a";
 const orderScriptTxIndex = 0;
 console.log("pool validator utxos number:", (await blockchainProvider.fetchAddressUTxOs(poolValidatorAddress)).length, "\n");
 console.log("order validator utxos number:", (await blockchainProvider.fetchAddressUTxOs(orderValidatorAddress)).length, "\n");
@@ -59,7 +59,7 @@ const isBuyOrder = Number(orderDatum.fields[6].fields[0].constructor) === 1 ? tr
 if (!isBuyOrder)
     throw new Error("Not a buy order!");
 const orderSwapAmount = Number(orderDatum.fields[6].fields[1].fields[0].int);
-const orderReceiverAddr = serializeAddressObj(orderDatum.fields[3]);
+const orderReceiverAddr = serializeAddressObj(orderDatum.fields[3], NETWORK_ID);
 console.log("orderSwapAmount:", orderSwapAmount);
 console.log("orderReceiverAddr:", orderReceiverAddr, "\n");
 // const usedBatcherFee = 3000000;
@@ -120,9 +120,9 @@ console.log("orderBalance:", orderBalance);
 console.log("lorenzoSmartAddr:", lorenzoSmartAddr);
 const invalidBefore = unixTimeToEnclosingSlot(
 // (Date.now() - 90000),
-Date.now() - 50000, SLOT_CONFIG_NETWORK.preprod);
+Date.now() - 50000, SLOT_CONFIG_NETWORK.mainnet);
 const invalidAfter = unixTimeToEnclosingSlot(Date.now() + 8 * 60 * 1000, // 8 mins
-SLOT_CONFIG_NETWORK.preprod);
+SLOT_CONFIG_NETWORK.mainnet);
 const rMem = 1500000;
 const rSteps = 1000000000;
 const unsignedTx = await txBuilder
@@ -190,7 +190,7 @@ const unsignedTx = await txBuilder
     .requiredSignerHash(wallet1VK)
     .changeAddress(wallet1Address)
     .selectUtxosFrom(wallet1Utxos)
-    .setFee("4108405")
+    //   .setFee("4108405")
     .complete();
 const signedTx = await wallet1.signTx(unsignedTx);
 const txHash = await wallet1.submitTx(signedTx);

@@ -39,7 +39,7 @@ const wallet1Utxos = await wallet1.getUtxos();
 // console.log("wallet1Address:", wallet1Address);
 // console.log("wallet1Utxos:", wallet1Utxos);
 const wallet1Collateral = wallet1Utxos.filter((utxo) => Number(utxo.output.amount[0].quantity) >= 7000000 &&
-    utxo.output.amount.length <= 4)[0];
+    utxo.output.amount.length === 1)[0];
 if (!wallet1Collateral) {
     throw new Error("No collateral utxo found 1");
 }

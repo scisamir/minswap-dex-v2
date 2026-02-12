@@ -27,11 +27,11 @@ REGISTER STAKE CREDENTIALS:
     b1b2e311085fef8d937113fb9173bae4967e6dbcdf51f7ce6b056467e52b2a8a
 
 Create Order:
-    (Buy)
+    8bf4d5b3c045cbe9a5b56b26e241aebe7e83f37e8b6361e5e5b157aba901d94d (Buy)
     (Buy)
     (Sell)
 Process Order (Batching):
-    (Buy)
+    5ea6d7a84ec79fed09b7964c45199b373ee980f96da1883472c3d321fc1ea6c4 (Buy)
     ---------------------------------------------------------------- (Buy)
     (Sell)
 Cancel order:

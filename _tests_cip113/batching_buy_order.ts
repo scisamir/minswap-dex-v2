@@ -54,6 +54,7 @@ import {
   lorenzoSmartAddr,
   wallet2VK,
   AdaSwapAmount,
+  NETWORK_ID,
 } from "./setup.js";
 
 // -------------Working hashes---------------- (Preview)
@@ -87,10 +88,12 @@ const poolBatchingScriptTxHash =
   "c3e7559ed8c00d25ccaff20b485dd4573843070ae96b25d2ce2b0b65c8c03d8c";
 const poolBatchingScriptTxIndex = 0;
 // pool ref script
-const poolScriptTxHash = "";
+const poolScriptTxHash =
+  "47e405c8fe12fa891b01497658796be1317dea037647f4361daca39a7f33db82";
 const poolScriptTxIndex = 0;
 // order ref script
-const orderScriptTxHash = "";
+const orderScriptTxHash =
+  "271af0b304ec2cac2e02f96d0557a71f529a087e8aeb2a22b35ec53256dd366a";
 const orderScriptTxIndex = 0;
 
 console.log(
@@ -136,7 +139,7 @@ const isBuyOrder =
 if (!isBuyOrder) throw new Error("Not a buy order!");
 
 const orderSwapAmount = Number(orderDatum.fields[6].fields[1].fields[0].int);
-const orderReceiverAddr = serializeAddressObj(orderDatum.fields[3]);
+const orderReceiverAddr = serializeAddressObj(orderDatum.fields[3], NETWORK_ID);
 console.log("orderSwapAmount:", orderSwapAmount);
 console.log("orderReceiverAddr:", orderReceiverAddr, "\n");
 
@@ -217,12 +220,12 @@ console.log("lorenzoSmartAddr:", lorenzoSmartAddr);
 const invalidBefore = unixTimeToEnclosingSlot(
   // (Date.now() - 90000),
   Date.now() - 50000,
-  SLOT_CONFIG_NETWORK.preprod
+  SLOT_CONFIG_NETWORK.mainnet
 );
 
 const invalidAfter = unixTimeToEnclosingSlot(
   Date.now() + 8 * 60 * 1000, // 8 mins
-  SLOT_CONFIG_NETWORK.preprod
+  SLOT_CONFIG_NETWORK.mainnet
 );
 
 const rMem = 1500000;
@@ -326,7 +329,7 @@ const unsignedTx = await txBuilder
   .requiredSignerHash(wallet1VK)
   .changeAddress(wallet1Address)
   .selectUtxosFrom(wallet1Utxos)
-  .setFee("4108405")
+  //   .setFee("4108405")
   .complete();
 
 const signedTx = await wallet1.signTx(unsignedTx);
