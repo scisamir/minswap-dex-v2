@@ -282,7 +282,7 @@ const orderCanclValidatorHash = resolveScriptHash(
 const orderCanclValidatorRewardAddress = serializeRewardAddress(
   orderCanclValidatorHash,
   true,
-  0
+  NETWORK_ID
 );
 
 // Order Validator
@@ -309,7 +309,7 @@ const orderValidatorScriptHash = resolveScriptHash(orderValidatorScript, "V3");
 const orderValidatorAddress = serializePlutusScript(
   { code: cip113ValidatorScript, version: "V3" },
   orderValidatorScriptHash,
-  0,
+  NETWORK_ID,
   true
 ).address;
 const orderValidatorRewardAddress = serializeRewardAddress(

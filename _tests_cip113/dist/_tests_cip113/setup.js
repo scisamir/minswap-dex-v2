@@ -154,7 +154,7 @@ const factoryAddress = serializePlutusScript({ code: factoryValidatorScript, ver
 const orderCanclValidator = blueprint.validators.filter((v) => v.title.includes("order_validator.validate_expired_order_cancel.withdraw"));
 const orderCanclValidatorScript = applyParamsToScript(orderCanclValidator[0].compiledCode, [], "JSON");
 const orderCanclValidatorHash = resolveScriptHash(orderCanclValidatorScript, "V3");
-const orderCanclValidatorRewardAddress = serializeRewardAddress(orderCanclValidatorHash, true, 0);
+const orderCanclValidatorRewardAddress = serializeRewardAddress(orderCanclValidatorHash, true, NETWORK_ID);
 // Order Validator
 const orderValidator = blueprint.validators.filter((v) => v.title.includes("order_validator.order_validator.withdraw"));
 // const orderValidator = utilBlueprint.validators.filter(v => (
@@ -170,7 +170,7 @@ const orderValidatorScript = applyParamsToScript(orderValidator[0].compiledCode,
 //     "JSON",
 // );
 const orderValidatorScriptHash = resolveScriptHash(orderValidatorScript, "V3");
-const orderValidatorAddress = serializePlutusScript({ code: cip113ValidatorScript, version: "V3" }, orderValidatorScriptHash, 0, true).address;
+const orderValidatorAddress = serializePlutusScript({ code: cip113ValidatorScript, version: "V3" }, orderValidatorScriptHash, NETWORK_ID, true).address;
 const orderValidatorRewardAddress = serializeRewardAddress(orderValidatorScriptHash, true, NETWORK_ID);
 // console.log("orderValidatorScriptHash:", orderValidatorScriptHash);
 // console.log('orderValidator Reward Address:', orderValidatorRewardAddress);

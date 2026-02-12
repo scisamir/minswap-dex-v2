@@ -21,10 +21,10 @@ Dex initialization:
     37fa80765e4d7b375513cdf1239b13bd02289238baf10deb5778aad233fa7959
 
 Pool Creation:
-    
+    2dafc93d572ea568ca80dcdc4f73352c36e34868aaaa716e16e2b44b6d173e48
 
 REGISTER STAKE CREDENTIALS:
-    
+    b1b2e311085fef8d937113fb9173bae4967e6dbcdf51f7ce6b056467e52b2a8a
 
 Create Order:
     (Buy)

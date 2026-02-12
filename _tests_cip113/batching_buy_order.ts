@@ -69,16 +69,28 @@ import {
 
 // -------------Working hashes---------------- (Preprod)
 // pool batching ref script
+// const poolBatchingScriptTxHash =
+//   "884ff2c9578f34d657566349b1e99b1c9c407c09e45118d1e13efdf84be4775e";
+// const poolBatchingScriptTxIndex = 0;
+// // pool ref script
+// const poolScriptTxHash =
+//   "ffdaec94caa9d50bdc06ce620a35f2ab68519714cdc76ada7c8088d571bb734a";
+// const poolScriptTxIndex = 0;
+// // order ref script
+// const orderScriptTxHash =
+//   "c0ccd1e23f98adb2e7797c5c2232af59df6e16813cf8de3882d60bda6fb8e486";
+// const orderScriptTxIndex = 0;
+
+// -------------Working hashes---------------- (Mainnet)
+// pool batching ref script
 const poolBatchingScriptTxHash =
-  "884ff2c9578f34d657566349b1e99b1c9c407c09e45118d1e13efdf84be4775e";
+  "c3e7559ed8c00d25ccaff20b485dd4573843070ae96b25d2ce2b0b65c8c03d8c";
 const poolBatchingScriptTxIndex = 0;
 // pool ref script
-const poolScriptTxHash =
-  "ffdaec94caa9d50bdc06ce620a35f2ab68519714cdc76ada7c8088d571bb734a";
+const poolScriptTxHash = "";
 const poolScriptTxIndex = 0;
 // order ref script
-const orderScriptTxHash =
-  "c0ccd1e23f98adb2e7797c5c2232af59df6e16813cf8de3882d60bda6fb8e486";
+const orderScriptTxHash = "";
 const orderScriptTxIndex = 0;
 
 console.log(
