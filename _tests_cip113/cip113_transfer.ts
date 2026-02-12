@@ -1,5 +1,34 @@
-import { applyParamsToScript, deserializeAddress, resolveScriptHash, serializePlutusScript, serializeRewardAddress, stringToHex } from "@meshsdk/core";
-import { alwaysSuccessMintValidatorHash, blockchainProvider, cip113RewardAddress, cip113Validator, cip113ValidatorHash, cip113ValidatorScript, lorenzoSmartAddr, lorenzoVK, orderValidatorAddress, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK, wallet2VK } from "./setup.js";
+import {
+  applyParamsToScript,
+  deserializeAddress,
+  resolveScriptHash,
+  serializePlutusScript,
+  serializeRewardAddress,
+  stringToHex,
+} from "@meshsdk/core";
+import {
+  alwaysSuccessMintValidatorHash,
+  blockchainProvider,
+  cip113RewardAddress,
+  cip113Validator,
+  cip113ValidatorHash,
+  cip113ValidatorScript,
+  lorenzoSmartAddr,
+  lorenzoVK,
+  NETWORK_ID,
+  orderValidatorAddress,
+  txBuilder,
+  wallet1,
+  wallet1Address,
+  wallet1Collateral,
+  wallet1Utxos,
+  wallet1VK,
+  wallet2,
+  wallet2Address,
+  wallet2Collateral,
+  wallet2Utxos,
+  wallet2VK,
+} from "./setup.js";
 
 // const compiledCode = cip113Validator[0].compiledCode;
 
@@ -15,10 +44,10 @@ import { alwaysSuccessMintValidatorHash, blockchainProvider, cip113RewardAddress
 //   ).address;
 
 //   const policy= resolveScriptHash(scriptCbor, "V3");
-//   let rewardAddress = serializeRewardAddress( 
-//     policy,  
-//     true, //here is true for contracts 
-//     0, //testnet or mainnet 
+//   let rewardAddress = serializeRewardAddress(
+//     policy,
+//     true, //here is true for contracts
+//     0, //testnet or mainnet
 //   );
 
 //   // console.log(policy);
@@ -54,7 +83,7 @@ const { scriptCbor, scriptAddr, policy, rewardAddress } = {
 const senderSmartAddr = serializePlutusScript(
   { code: scriptCbor, version: "V3" },
   wallet1VK,
-  0,
+  NETWORK_ID
 ).address;
 // const receiverSmartAddr = serializePlutusScript(
 //   { code: scriptCbor, version: "V3" },
@@ -69,11 +98,16 @@ console.log("lorenzoSmartAddr:", lorenzoSmartAddr);
 const assetNameHex = stringToHex("realUSDC");
 const assetUnit = policy + assetNameHex;
 
-const cip113AddrUtxos = await blockchainProvider.fetchAddressUTxOs(senderSmartAddr);
+const cip113AddrUtxos =
+  await blockchainProvider.fetchAddressUTxOs(senderSmartAddr);
 // console.log("cip addr utxos:", cip113AddrUtxos);
 // // console.log("senderSmartAddr:", senderSmartAddr);
 for (let i = 0; i < cip113AddrUtxos.length; i++) {
-  console.log(cip113AddrUtxos[i].input.txHash, cip113AddrUtxos[i].input.outputIndex, cip113AddrUtxos[i].output.amount)
+  console.log(
+    cip113AddrUtxos[i].input.txHash,
+    cip113AddrUtxos[i].input.outputIndex,
+    cip113AddrUtxos[i].output.amount
+  );
 }
 
 // console.log("order utxos:", (await blockchainProvider.fetchAddressUTxOs(orderValidatorAddress)));
@@ -85,23 +119,23 @@ for (let i = 0; i < cip113AddrUtxos.length; i++) {
 //   .mint("2000000", policy, assetNameHex)
 //   .mintingScript(scriptCbor)
 //   .mintRedeemerValue("")
-//   .txOut(senderSmartAddr, [ { unit: assetUnit, quantity: "2000000" } ])
+//   .txOut(senderSmartAddr, [{ unit: assetUnit, quantity: "2000000" }])
 //   .txInCollateral(
-//     wallet1Collateral.input.txHash,
-//     wallet1Collateral.input.outputIndex,
-//     wallet1Collateral.output.amount,
-//     wallet1Collateral.output.address,
+//     wallet2Collateral.input.txHash,
+//     wallet2Collateral.input.outputIndex,
+//     wallet2Collateral.output.amount,
+//     wallet2Collateral.output.address
 //   )
-//   .changeAddress(wallet1Address)
-//   .selectUtxosFrom(wallet1Utxos)
-//   .requiredSignerHash(wallet1VK)
-//   .complete()
+//   .changeAddress(wallet2Address)
+//   .selectUtxosFrom(wallet2Utxos)
+//   .requiredSignerHash(wallet2VK)
+//   .complete();
 
-// const signedTx = await wallet1.signTx(unsignedTx);
-// const txHash = await wallet1.submitTx(signedTx);
+// const signedTx = await wallet2.signTx(unsignedTx);
+// const txHash = await wallet2.submitTx(signedTx);
 // console.log("mint assets tx hash:", txHash);
-// mint assets tx hash: b5b4fc3fa0bad70793f1f40343c48f4269022113bcdd9e0e2c20d7533bb7f766
-
+// mint assets tx hash: 14b460cfb9e7459aa0576238c328b591ed123225bcfbfa69e42b03b8efe0714b (Mainnet)
+// mint assets tx hash: b5b4fc3fa0bad70793f1f40343c48f4269022113bcdd9e0e2c20d7533bb7f766 (Preprod)
 
 // CIP113 transfer
 // const unsignedTx = await txBuilder
@@ -178,7 +212,6 @@ for (let i = 0; i < cip113AddrUtxos.length; i++) {
 // console.log("CIP113 ada transfer tx hash:", txHash);
 // CIP113 ada transfer tx hash: 608e769ae2cdcb6ceec501a84b62a7b6791a3553b529e7032c8f766c80997017
 
-
 // Send ADA only value
 // const unsignedTx = await txBuilder
 //   // send ada to smart address
@@ -199,7 +232,6 @@ for (let i = 0; i < cip113AddrUtxos.length; i++) {
 
 // console.log("CIP113 ada send tx hash:", txHash);
 // CIP113 ada send tx hash: fda4d6fa742ff0978306dbc67818f7397f9822fefbfec9e2cfc182038864d976
-
 
 // Send myTokenOne
 // const unsignedTx = await txBuilder

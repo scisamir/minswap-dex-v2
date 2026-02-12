@@ -13,22 +13,43 @@
 
 
 
-Update global settings tx hash: 8549091accf2c69b97f11374cd5e56ba2a5e84c7107a15dd9a52b029ef825021
 
 
 
-
-
-
-
+(Mainnet)
 Dex initialization:
-    
+    37fa80765e4d7b375513cdf1239b13bd02289238baf10deb5778aad233fa7959
 
 Pool Creation:
     
 
 REGISTER STAKE CREDENTIALS:
     
+
+Create Order:
+    (Buy)
+    (Buy)
+    (Sell)
+Process Order (Batching):
+    (Buy)
+    ---------------------------------------------------------------- (Buy)
+    (Sell)
+Cancel order:
+    (Buy)
+    ---------------------------------------------------------------- (Sell)
+
+
+
+
+(Preprod)
+Dex initialization:
+    9f68e01979289d46e1dc13c966d6cc0440235f6604ab3f8befd994a1b9918332
+
+Pool Creation:
+    4c25d32ca36e32c0ae27f80f530df959dba08df5ba0c86a1fc848a54ecdbf5f6
+
+REGISTER STAKE CREDENTIALS:
+    bb68f0d8636b9c076e8009991d8c72d3e69bd982b068a04ed3845e4ca38165ab
 
 Create Order:
     (Buy)

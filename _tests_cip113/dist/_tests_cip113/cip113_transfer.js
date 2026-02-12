@@ -1,5 +1,5 @@
-import { serializePlutusScript, stringToHex } from "@meshsdk/core";
-import { blockchainProvider, cip113RewardAddress, cip113ValidatorHash, cip113ValidatorScript, lorenzoSmartAddr, lorenzoVK, wallet1VK } from "./setup.js";
+import { serializePlutusScript, stringToHex, } from "@meshsdk/core";
+import { blockchainProvider, cip113RewardAddress, cip113ValidatorHash, cip113ValidatorScript, lorenzoSmartAddr, lorenzoVK, NETWORK_ID, wallet1VK, } from "./setup.js";
 // const compiledCode = cip113Validator[0].compiledCode;
 // export function get_cip113_script() {
 //   const scriptCbor = applyParamsToScript(
@@ -11,10 +11,10 @@ import { blockchainProvider, cip113RewardAddress, cip113ValidatorHash, cip113Val
 //     { code: scriptCbor, version: "V3" }
 //   ).address;
 //   const policy= resolveScriptHash(scriptCbor, "V3");
-//   let rewardAddress = serializeRewardAddress( 
-//     policy,  
-//     true, //here is true for contracts 
-//     0, //testnet or mainnet 
+//   let rewardAddress = serializeRewardAddress(
+//     policy,
+//     true, //here is true for contracts
+//     0, //testnet or mainnet
 //   );
 //   // console.log(policy);
 //   return { scriptCbor, scriptAddr, policy, rewardAddress };
@@ -41,7 +41,7 @@ const { scriptCbor, scriptAddr, policy, rewardAddress } = {
 //   throw new Error("Could not fetch cip113 utxo");
 // }
 // console.log("cip113Utxo:", cip113Utxo);
-const senderSmartAddr = serializePlutusScript({ code: scriptCbor, version: "V3" }, wallet1VK, 0).address;
+const senderSmartAddr = serializePlutusScript({ code: scriptCbor, version: "V3" }, wallet1VK, NETWORK_ID).address;
 // const receiverSmartAddr = serializePlutusScript(
 //   { code: scriptCbor, version: "V3" },
 //   wallet2VK,
@@ -66,21 +66,22 @@ for (let i = 0; i < cip113AddrUtxos.length; i++) {
 //   .mint("2000000", policy, assetNameHex)
 //   .mintingScript(scriptCbor)
 //   .mintRedeemerValue("")
-//   .txOut(senderSmartAddr, [ { unit: assetUnit, quantity: "2000000" } ])
+//   .txOut(senderSmartAddr, [{ unit: assetUnit, quantity: "2000000" }])
 //   .txInCollateral(
-//     wallet1Collateral.input.txHash,
-//     wallet1Collateral.input.outputIndex,
-//     wallet1Collateral.output.amount,
-//     wallet1Collateral.output.address,
+//     wallet2Collateral.input.txHash,
+//     wallet2Collateral.input.outputIndex,
+//     wallet2Collateral.output.amount,
+//     wallet2Collateral.output.address
 //   )
-//   .changeAddress(wallet1Address)
-//   .selectUtxosFrom(wallet1Utxos)
-//   .requiredSignerHash(wallet1VK)
-//   .complete()
-// const signedTx = await wallet1.signTx(unsignedTx);
-// const txHash = await wallet1.submitTx(signedTx);
+//   .changeAddress(wallet2Address)
+//   .selectUtxosFrom(wallet2Utxos)
+//   .requiredSignerHash(wallet2VK)
+//   .complete();
+// const signedTx = await wallet2.signTx(unsignedTx);
+// const txHash = await wallet2.submitTx(signedTx);
 // console.log("mint assets tx hash:", txHash);
-// mint assets tx hash: b5b4fc3fa0bad70793f1f40343c48f4269022113bcdd9e0e2c20d7533bb7f766
+// mint assets tx hash: 14b460cfb9e7459aa0576238c328b591ed123225bcfbfa69e42b03b8efe0714b (Mainnet)
+// mint assets tx hash: b5b4fc3fa0bad70793f1f40343c48f4269022113bcdd9e0e2c20d7533bb7f766 (Preprod)
 // CIP113 transfer
 // const unsignedTx = await txBuilder
 //   // spend cip113 input

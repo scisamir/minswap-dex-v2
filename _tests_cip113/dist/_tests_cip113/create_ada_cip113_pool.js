@@ -1,7 +1,11 @@
 import { mConStr0, mConStr1 } from "@meshsdk/core";
-import { AdaAssetA, authenPolicyId, blockchainProvider, factoryAddress, factoryAssetName, factoryValidatorScript, AdaTokenSupply, maxInt64, poolAuthAssetName, poolBatchingValidatorHash, poolValidatorAddress, AdaRemainingLiquidity, AdaTotalLiquidity, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, cip113ValidatorScript, cip113RewardAddress, usdcUnit, usdcSupply, usdcAssetB, usdcAdaLpAssetName, usdcCip113Balance, usdcCip113Utxo } from "./setup.js";
+import { AdaAssetA, authenPolicyId, blockchainProvider, factoryAddress, factoryAssetName, factoryValidatorScript, AdaTokenSupply, maxInt64, poolAuthAssetName, poolBatchingValidatorHash, poolValidatorAddress, AdaRemainingLiquidity, AdaTotalLiquidity, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, cip113ValidatorScript, cip113RewardAddress, usdcUnit, usdcSupply, usdcAssetB, usdcAdaLpAssetName, usdcCip113Balance, usdcCip113Utxo, } from "./setup.js";
 // Authen
-const authenScriptTxHash = "7e9de584b5029de2485674cc5fb512392c15347c2a699a4bc72eb0c18e0e8079";
+// (Mainnet)
+const authenScriptTxHash = "fa454e88398d43e4e4a00c9134be743c4122c8a9d4bee8b732fddadf9f596f0c";
+// (Preprod)
+// const authenScriptTxHash =
+//   "c78c3026cdaf14b499e479025bded8da454a06c66028eecb0cb6820bae669a4c";
 const authenScriptTxIndex = 0;
 // Factory
 // const factoryScriptTxHash = "";
@@ -9,19 +13,13 @@ const authenScriptTxIndex = 0;
 const factoryUtxos = await blockchainProvider.fetchAddressUTxOs(factoryAddress);
 const factoryInput = factoryUtxos[factoryUtxos.length - 1];
 if (!factoryInput) {
-    throw new Error('Factory input not found');
+    throw new Error("Factory input not found");
 }
-const factoryRedeemer = mConStr0([
-    AdaAssetA,
-    usdcAssetB,
-]);
+const factoryRedeemer = mConStr0([AdaAssetA, usdcAssetB]);
 // console.log("Asset A unit:", alwaysSuccessMintValidatorHash, tokenA);
 // console.log("Asset B unit:", alwaysSuccessMintValidatorHash, tokenB);
 const factoryNftUnit = authenPolicyId + factoryAssetName;
-const factoryDatum1 = mConStr0([
-    "00",
-    usdcAdaLpAssetName,
-]);
+const factoryDatum1 = mConStr0(["00", usdcAdaLpAssetName]);
 const factoryDatum2 = mConStr0([
     usdcAdaLpAssetName,
     "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00",
@@ -90,13 +88,18 @@ const unsignedTx = await txBuilder
     .txOut(factoryAddress, [{ unit: factoryNftUnit, quantity: "1" }])
     .txOutInlineDatumValue(factoryDatum2)
     // Return myTokenOneCip113 back to cip 113 addr
-    .txOut(usdcCip113Utxo.output.address, [{ unit: usdcUnit, quantity: String(usdcCip113Balance - usdcSupply) }])
+    .txOut(usdcCip113Utxo.output.address, [
+    { unit: usdcUnit, quantity: String(usdcCip113Balance - usdcSupply) },
+])
     // pool validator output
     .txOut(poolValidatorAddress, [
     // add min_ada to ada supply
     { unit: "lovelace", quantity: String(AdaTokenSupply + 4500000) },
     { unit: usdcUnit, quantity: String(usdcSupply) },
-    { unit: authenPolicyId + usdcAdaLpAssetName, quantity: String(AdaRemainingLiquidity) },
+    {
+        unit: authenPolicyId + usdcAdaLpAssetName,
+        quantity: String(AdaRemainingLiquidity),
+    },
     { unit: authenPolicyId + poolAuthAssetName, quantity: "1" },
 ])
     .txOutInlineDatumValue(poolDatum)

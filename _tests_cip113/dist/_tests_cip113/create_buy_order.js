@@ -1,9 +1,9 @@
-import { mConStr0, mConStr1, mScriptAddress } from "@meshsdk/core";
-import { authenPolicyId, orderLovelaceAmount, orderValidatorAddress, AdaSwapAmount, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK, cip113ValidatorHash, usdcAdaLpAssetName } from "./setup.js";
+import { mConStr0, mConStr1, mScriptAddress, } from "@meshsdk/core";
+import { authenPolicyId, orderLovelaceAmount, orderValidatorAddress, AdaSwapAmount, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK, cip113ValidatorHash, usdcAdaLpAssetName, } from "./setup.js";
 const orderStep = mConStr0([
     mConStr1([]), // True (a_to_b_direction)
     mConStr0([AdaSwapAmount]), // swap_amount_option
-    18, // minimum_receive
+    1, // minimum_receive
     mConStr0([]), // False
 ]);
 const orderDatum = mConStr0([
@@ -16,7 +16,7 @@ const orderDatum = mConStr0([
     mConStr0([]),
     mConStr0([
         authenPolicyId, // policy id
-        usdcAdaLpAssetName // asset name
+        usdcAdaLpAssetName, // asset name
     ]), // changes according to the related liquidity pool
     orderStep,
     6000000, // max_batcher_fee: 6 ADA
