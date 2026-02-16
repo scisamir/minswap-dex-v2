@@ -397,14 +397,14 @@ const maxInt64 = 9223372036854775807n;
 const AdaRemainingLiquidity = maxInt64 - (BigInt(AdaTotalLiquidity) - 10n);
 
 // order utils
-const swapAmount = 20;
-const AdaSwapAmount = 3000000;
-const orderLovelaceAmount = 5800000;
+const swapAmount = 5;
+const AdaSwapAmount = 2000000;
+const orderLovelaceAmount = 5300000;
 
 // usdc cip113 utxo
 const usdcCip113Utxos = await blockchainProvider.fetchUTxOs(
-  "14b460cfb9e7459aa0576238c328b591ed123225bcfbfa69e42b03b8efe0714b",
-  0
+  "2dafc93d572ea568ca80dcdc4f73352c36e34868aaaa716e16e2b44b6d173e48",
+  2
 );
 const usdcCip113Utxo = usdcCip113Utxos[0];
 if (!usdcCip113Utxo) {
@@ -420,6 +420,7 @@ console.log("usdcCip113Balance:", usdcCip113Balance);
 // console.log("orderValidatorAddress:", orderValidatorAddress);
 // console.log("alwaysSuccessMintValidatorHash:", alwaysSuccessMintValidatorHash);
 // console.log("userCip113Addr:", userCip113Addr);
+console.log("authenPolicyId:", authenPolicyId);
 
 // console.log("wallet1VK:", wallet1VK);
 
@@ -433,6 +434,60 @@ const lorenzoSmartAddr = serializePlutusScript(
 ).address;
 
 console.log(cip113ValidatorHash, lorenzoVK);
+
+const calculate_amount_out = (
+  reserve_in: number,
+  reserve_out: number,
+  amount_in: number,
+  trading_fee_numerator: number
+) => {
+  const default_fee_denominator = 10000;
+
+  let diff = default_fee_denominator - trading_fee_numerator;
+  let in_with_fee = diff * amount_in;
+  let numerator = in_with_fee * reserve_out;
+  let denominator = default_fee_denominator * reserve_in + in_with_fee;
+  return Math.floor(numerator / denominator);
+};
+
+// -------------Working hashes---------------- (Preview)
+// pool batching ref script
+// const poolBatchingScriptTxHash = "85e83c7cab230207f913245a43c9c25efaa9124a69e6116cb2bb6d966364ab2a";
+// const poolBatchingScriptTxIndex = 0;
+// // pool ref script
+// const poolScriptTxHash = "7f3ae62c327604df8689f53ba4079f4c42e5c5dc8754c2dd27172d1d124f7f4b";
+// const poolScriptTxIndex = 0;
+// // order ref script
+// const orderScriptTxHash = "c5291bac8918c4067783388da62e1d68c8fb8cd75fe50dc71a74bcb8e3caae7b";
+// const orderScriptTxIndex = 0;
+
+// -------------Working hashes---------------- (Preprod)
+// pool batching ref script
+// const poolBatchingScriptTxHash =
+//   "884ff2c9578f34d657566349b1e99b1c9c407c09e45118d1e13efdf84be4775e";
+// const poolBatchingScriptTxIndex = 0;
+// // pool ref script
+// const poolScriptTxHash =
+//   "ffdaec94caa9d50bdc06ce620a35f2ab68519714cdc76ada7c8088d571bb734a";
+// const poolScriptTxIndex = 0;
+// // order ref script
+// const orderScriptTxHash =
+//   "c0ccd1e23f98adb2e7797c5c2232af59df6e16813cf8de3882d60bda6fb8e486";
+// const orderScriptTxIndex = 0;
+
+// -------------Working hashes---------------- (Mainnet)
+// pool batching ref script
+const poolBatchingScriptTxHash =
+  "c3e7559ed8c00d25ccaff20b485dd4573843070ae96b25d2ce2b0b65c8c03d8c";
+const poolBatchingScriptTxIndex = 0;
+// pool ref script
+const poolScriptTxHash =
+  "47e405c8fe12fa891b01497658796be1317dea037647f4361daca39a7f33db82";
+const poolScriptTxIndex = 0;
+// order ref script
+const orderScriptTxHash =
+  "271af0b304ec2cac2e02f96d0557a71f529a087e8aeb2a22b35ec53256dd366a";
+const orderScriptTxIndex = 0;
 
 export {
   blueprint,
@@ -522,4 +577,12 @@ export {
   lorenzoVK,
   lorenzoSmartAddr,
   NETWORK_ID,
+  calculate_amount_out,
+  // reference inputs
+  poolBatchingScriptTxHash,
+  poolBatchingScriptTxIndex,
+  poolScriptTxHash,
+  poolScriptTxIndex,
+  orderScriptTxHash,
+  orderScriptTxIndex,
 };

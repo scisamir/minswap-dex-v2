@@ -1,9 +1,9 @@
 import { mConStr0, mConStr1, mScriptAddress } from "@meshsdk/core";
-import { authenPolicyId, orderLovelaceAmount, orderValidatorAddress, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK, cip113ValidatorHash, swapAmount, usdcUnit, cip113ValidatorScript, usdcCip113Utxo, usdcCip113Balance, cip113RewardAddress, usdcAdaLpAssetName } from "./setup.js";
+import { authenPolicyId, orderLovelaceAmount, orderValidatorAddress, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK, cip113ValidatorHash, swapAmount, usdcUnit, cip113ValidatorScript, usdcCip113Utxo, usdcCip113Balance, cip113RewardAddress, usdcAdaLpAssetName, } from "./setup.js";
 const orderStep = mConStr0([
     mConStr0([]), // False (a_to_b_direction)
     mConStr0([swapAmount]), // swap_amount_option
-    18, // minimum_receive
+    1, // minimum_receive
     mConStr0([]), // False
 ]);
 const orderDatum = mConStr0([
@@ -16,7 +16,7 @@ const orderDatum = mConStr0([
     mConStr0([]),
     mConStr0([
         authenPolicyId, // policy id
-        usdcAdaLpAssetName // asset name
+        usdcAdaLpAssetName, // asset name
     ]), // changes according to the related liquidity pool
     orderStep,
     6000000, // max_batcher_fee: 6 ADA
@@ -36,7 +36,9 @@ const unsignedTx = await txBuilder
     .withdrawalScript(cip113ValidatorScript)
     .withdrawalRedeemerValue("")
     // cip113 provider change
-    .txOut(usdcCip113Utxo.output.address, [{ unit: usdcUnit, quantity: String(usdcCip113Balance - swapAmount) }])
+    .txOut(usdcCip113Utxo.output.address, [
+    { unit: usdcUnit, quantity: String(usdcCip113Balance - swapAmount) },
+])
     // order utxo output
     .txOut(orderValidatorAddress, [
     { unit: "lovelace", quantity: String(orderLovelaceAmount) }, // batcher fee is deducted from here

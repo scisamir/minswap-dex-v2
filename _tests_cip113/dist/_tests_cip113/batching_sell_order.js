@@ -1,16 +1,7 @@
-import { deserializeDatum, mConStr0, mConStr1, SLOT_CONFIG_NETWORK, unixTimeToEnclosingSlot } from "@meshsdk/core";
-import { cip113ValidatorScript, AdaAssetA, authenAddress, authenPolicyId, blockchainProvider, orderLovelaceAmount, orderValidatorAddress, orderValidatorRewardAddress, orderValidatorScriptHash, poolAuthAssetName, poolBatchingValidatorHash, poolBatchingValidatorRewardAddress, poolValidatorAddress, poolValidatorRewardAddress, poolValidatorScriptHash, AdaRemainingLiquidity, AdaTotalLiquidity, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK, cip113RewardAddress, userCip113Addr, usdcAssetB, swapAmount, usdcAdaLpAssetName, usdcUnit } from "./setup.js";
-// pool batching ref script
-const poolBatchingScriptTxHash = "85e83c7cab230207f913245a43c9c25efaa9124a69e6116cb2bb6d966364ab2a";
-const poolBatchingScriptTxIndex = 0;
-// pool ref script
-const poolScriptTxHash = "7f3ae62c327604df8689f53ba4079f4c42e5c5dc8754c2dd27172d1d124f7f4b";
-const poolScriptTxIndex = 0;
-// order ref script
-const orderScriptTxHash = "c5291bac8918c4067783388da62e1d68c8fb8cd75fe50dc71a74bcb8e3caae7b";
-const orderScriptTxIndex = 0;
-console.log("pool validator utxos number:", (await blockchainProvider.fetchAddressUTxOs(poolValidatorAddress)).length, '\n');
-console.log("order validator utxos number:", (await blockchainProvider.fetchAddressUTxOs(orderValidatorAddress)).length, '\n');
+import { deserializeDatum, mConStr0, mConStr1, SLOT_CONFIG_NETWORK, unixTimeToEnclosingSlot, } from "@meshsdk/core";
+import { cip113ValidatorScript, AdaAssetA, authenAddress, authenPolicyId, blockchainProvider, orderLovelaceAmount, orderValidatorAddress, orderValidatorRewardAddress, orderValidatorScriptHash, poolAuthAssetName, poolBatchingValidatorHash, poolBatchingValidatorRewardAddress, poolValidatorAddress, poolValidatorRewardAddress, poolValidatorScriptHash, AdaRemainingLiquidity, AdaTotalLiquidity, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK, cip113RewardAddress, userCip113Addr, usdcAssetB, usdcAdaLpAssetName, usdcUnit, orderScriptTxHash, orderScriptTxIndex, poolScriptTxHash, poolScriptTxIndex, poolBatchingScriptTxHash, poolBatchingScriptTxIndex, calculate_amount_out, } from "./setup.js";
+console.log("pool validator utxos number:", (await blockchainProvider.fetchAddressUTxOs(poolValidatorAddress)).length, "\n");
+console.log("order validator utxos number:", (await blockchainProvider.fetchAddressUTxOs(orderValidatorAddress)).length, "\n");
 const poolUtxo = (await blockchainProvider.fetchAddressUTxOs(poolValidatorAddress))[0];
 if (!poolUtxo) {
     throw new Error("pool utxo not found!");
@@ -24,28 +15,37 @@ const globalSettingsUtxo = (await blockchainProvider.fetchAddressUTxOs(authenAdd
 if (!globalSettingsUtxo) {
     throw new Error("global settings utxo not found!");
 }
-const usedBatcherFee = 3000000;
+const usedBatcherFee = 2800000; // -> changes here
 const poolBatchingRedeemer = mConStr0([
     0,
     [usedBatcherFee], // used_batcher_fee, first index: 3 ADA
     "00", // minswap used "00"
     mConStr1([]),
-    [mConStr1([])] // [mConStr0([6])],
+    [mConStr1([])], // [mConStr0([6])],
 ]);
 // order output value
 const orderLovelaceBalance = orderLovelaceAmount - usedBatcherFee;
 console.log("orderLovelaceBalance", orderLovelaceBalance);
-const adaSellOrderAmount = 20241174; // pre-calculated on chain (just for testing)
+const orderPlutusData = orderUtxo.output.plutusData;
+if (!orderPlutusData)
+    throw new Error("Invalid order");
+const orderDatum = deserializeDatum(orderPlutusData);
+const swapAmount = Number(orderDatum.fields[6].fields[1].fields[0].int);
 // updated pool datum (calculated updated reserves based on A -> B order direction)
 if (!poolUtxo.output.plutusData) {
     throw new Error("No datum in pool utxo");
 }
 const oldPoolDatum = deserializeDatum(poolUtxo.output.plutusData); // ideal way is to create a type for the datum to deserialize; this is just for testing
-const updatedAdaTokenSupply = oldPoolDatum.fields[4].int - adaSellOrderAmount;
-const updatedUsdcSupply = oldPoolDatum.fields[5].int + swapAmount;
+const oldPoolAdaTokenSupply = Number(oldPoolDatum.fields[4].int);
+const oldPoolUsdcSupply = Number(oldPoolDatum.fields[5].int);
+const base_fee_a_numerator = 6;
+const adaSellOrderAmount = calculate_amount_out(oldPoolUsdcSupply, oldPoolAdaTokenSupply, swapAmount, base_fee_a_numerator);
+console.log("swapAmount:", swapAmount);
+console.log("adaSellOrderAmount:", adaSellOrderAmount);
+const updatedAdaTokenSupply = oldPoolAdaTokenSupply - adaSellOrderAmount;
+const updatedUsdcSupply = oldPoolUsdcSupply + swapAmount;
 console.log("updatedAdaTokenSupply:", updatedAdaTokenSupply);
 console.log("updatedUsdcSupply:", updatedUsdcSupply);
-console.log(oldPoolDatum.fields[4].int, oldPoolDatum.fields[5].int);
 const poolDatum = mConStr0([
     mConStr1([poolBatchingValidatorHash]),
     AdaAssetA,
@@ -58,9 +58,9 @@ const poolDatum = mConStr0([
     mConStr1([]),
     mConStr0([]),
 ]);
-const invalidBefore = unixTimeToEnclosingSlot((Date.now() - 45000), SLOT_CONFIG_NETWORK.preview);
-const invalidAfter = unixTimeToEnclosingSlot((Date.now() + 8 * 60 * 1000), // 8 mins
-SLOT_CONFIG_NETWORK.preview);
+const invalidBefore = unixTimeToEnclosingSlot(Date.now() - 45000, SLOT_CONFIG_NETWORK.mainnet);
+const invalidAfter = unixTimeToEnclosingSlot(Date.now() + 8 * 60 * 1000, // 8 mins
+SLOT_CONFIG_NETWORK.mainnet);
 const rMem = 1500000;
 const rSteps = 1000000000;
 const unsignedTx = await txBuilder
@@ -105,13 +105,19 @@ const unsignedTx = await txBuilder
     // .withdrawalRedeemerValue(poolBatchingRedeemer, "Mesh", { mem: rMem, steps: rSteps })
     // order output
     .txOut(userCip113Addr, [
-    { unit: "lovelace", quantity: String(orderLovelaceBalance + adaSellOrderAmount) },
+    {
+        unit: "lovelace",
+        quantity: String(orderLovelaceBalance + adaSellOrderAmount),
+    },
 ])
     // pool validator output
     .txOut(poolValidatorAddress, [
     { unit: "lovelace", quantity: String(updatedAdaTokenSupply + 4500000) },
     { unit: usdcUnit, quantity: String(updatedUsdcSupply) },
-    { unit: authenPolicyId + usdcAdaLpAssetName, quantity: String(AdaRemainingLiquidity) },
+    {
+        unit: authenPolicyId + usdcAdaLpAssetName,
+        quantity: String(AdaRemainingLiquidity),
+    },
     { unit: authenPolicyId + poolAuthAssetName, quantity: "1" },
 ])
     .txOutInlineDatumValue(poolDatum)
@@ -124,8 +130,7 @@ const unsignedTx = await txBuilder
     .requiredSignerHash(wallet1VK)
     .changeAddress(wallet1Address)
     .selectUtxosFrom(wallet1Utxos)
-    .setFee("4108405")
-    // .setFee("9461061")
+    //   .setFee("4108405")
     .complete();
 const signedTx = await wallet1.signTx(unsignedTx);
 const txHash = await wallet1.submitTx(signedTx);

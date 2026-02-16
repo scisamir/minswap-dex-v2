@@ -1,38 +1,25 @@
 import {
   deserializeDatum,
-  Integer,
   mConStr0,
   mConStr1,
-  mConStr2,
-  mConStr3,
-  resolvePlutusScriptAddress,
   serializeAddressObj,
-  serializePlutusScript,
   SLOT_CONFIG_NETWORK,
-  stringToHex,
   unixTimeToEnclosingSlot,
 } from "@meshsdk/core";
 import {
-  alwaysSuccessMintValidatorHash,
   cip113ValidatorScript,
   AdaAssetA,
-  assetB,
   authenAddress,
   authenPolicyId,
   blockchainProvider,
-  AdaLpAssetName,
-  orderLovelaceAmount,
   orderValidatorAddress,
   orderValidatorRewardAddress,
-  orderValidatorScript,
   orderValidatorScriptHash,
   poolAuthAssetName,
   poolBatchingValidatorHash,
   poolBatchingValidatorRewardAddress,
-  poolBatchingValidatorScript,
   poolValidatorAddress,
   poolValidatorRewardAddress,
-  poolValidatorScript,
   poolValidatorScriptHash,
   AdaRemainingLiquidity,
   AdaTotalLiquidity,
@@ -42,59 +29,20 @@ import {
   wallet1Collateral,
   wallet1Utxos,
   wallet1VK,
-  wallet2,
-  wallet2Address,
-  wallet2Collateral,
-  wallet2Utxos,
   cip113RewardAddress,
-  cip113ValidatorHash,
   usdcUnit,
   usdcAdaLpAssetName,
   usdcAssetB,
   lorenzoSmartAddr,
-  wallet2VK,
-  AdaSwapAmount,
   NETWORK_ID,
+  orderScriptTxHash,
+  orderScriptTxIndex,
+  poolScriptTxHash,
+  poolScriptTxIndex,
+  poolBatchingScriptTxHash,
+  poolBatchingScriptTxIndex,
+  calculate_amount_out,
 } from "./setup.js";
-
-// -------------Working hashes---------------- (Preview)
-// pool batching ref script
-// const poolBatchingScriptTxHash = "85e83c7cab230207f913245a43c9c25efaa9124a69e6116cb2bb6d966364ab2a";
-// const poolBatchingScriptTxIndex = 0;
-// // pool ref script
-// const poolScriptTxHash = "7f3ae62c327604df8689f53ba4079f4c42e5c5dc8754c2dd27172d1d124f7f4b";
-// const poolScriptTxIndex = 0;
-// // order ref script
-// const orderScriptTxHash = "c5291bac8918c4067783388da62e1d68c8fb8cd75fe50dc71a74bcb8e3caae7b";
-// const orderScriptTxIndex = 0;
-
-// -------------Working hashes---------------- (Preprod)
-// pool batching ref script
-// const poolBatchingScriptTxHash =
-//   "884ff2c9578f34d657566349b1e99b1c9c407c09e45118d1e13efdf84be4775e";
-// const poolBatchingScriptTxIndex = 0;
-// // pool ref script
-// const poolScriptTxHash =
-//   "ffdaec94caa9d50bdc06ce620a35f2ab68519714cdc76ada7c8088d571bb734a";
-// const poolScriptTxIndex = 0;
-// // order ref script
-// const orderScriptTxHash =
-//   "c0ccd1e23f98adb2e7797c5c2232af59df6e16813cf8de3882d60bda6fb8e486";
-// const orderScriptTxIndex = 0;
-
-// -------------Working hashes---------------- (Mainnet)
-// pool batching ref script
-const poolBatchingScriptTxHash =
-  "c3e7559ed8c00d25ccaff20b485dd4573843070ae96b25d2ce2b0b65c8c03d8c";
-const poolBatchingScriptTxIndex = 0;
-// pool ref script
-const poolScriptTxHash =
-  "47e405c8fe12fa891b01497658796be1317dea037647f4361daca39a7f33db82";
-const poolScriptTxIndex = 0;
-// order ref script
-const orderScriptTxHash =
-  "271af0b304ec2cac2e02f96d0557a71f529a087e8aeb2a22b35ec53256dd366a";
-const orderScriptTxIndex = 0;
 
 console.log(
   "pool validator utxos number:",
@@ -116,8 +64,7 @@ if (!poolUtxo) {
 const orderUtxos = await blockchainProvider.fetchAddressUTxOs(
   orderValidatorAddress
 );
-// const orderUtxo = orderUtxos[7];
-const orderUtxo = orderUtxos[0];
+const orderUtxo = orderUtxos[orderUtxos.length - 1];
 if (!orderUtxo) {
   throw new Error("order utxo not found!");
 }
@@ -140,13 +87,12 @@ if (!isBuyOrder) throw new Error("Not a buy order!");
 
 const orderSwapAmount = Number(orderDatum.fields[6].fields[1].fields[0].int);
 const orderReceiverAddr = serializeAddressObj(orderDatum.fields[3], NETWORK_ID);
+const orderUtxoBalance = Number(orderUtxo.output.amount[0].quantity);
 console.log("orderSwapAmount:", orderSwapAmount);
 console.log("orderReceiverAddr:", orderReceiverAddr, "\n");
 
-// const usedBatcherFee = 3000000;
 const usedBatcherFee = 2800000; // -> changes here
-const orderBalance = orderLovelaceAmount - usedBatcherFee;
-// const poolBatchingRedeemer = "";
+const orderBalance = orderUtxoBalance - orderSwapAmount - usedBatcherFee;
 const poolBatchingRedeemer = mConStr0([
   0, // batcher index
   [usedBatcherFee], // used_batcher_fee, first index: 3 ADA
@@ -154,26 +100,6 @@ const poolBatchingRedeemer = mConStr0([
   mConStr1([]),
   [mConStr1([])], // [mConStr0([6])],
 ]);
-
-// order output value
-// const orderLovelaceBalance = orderLovelaceAmount - usedBatcherFee;
-// console.log("orderLovelaceBalance", orderLovelaceBalance);
-// const assetBAmount = 19; // pre-calculated on chain (just for testing)
-
-const calculate_amount_out = (
-  reserve_in: number,
-  reserve_out: number,
-  amount_in: number,
-  trading_fee_numerator: number
-) => {
-  const default_fee_denominator = 10000;
-
-  let diff = default_fee_denominator - trading_fee_numerator;
-  let in_with_fee = diff * amount_in;
-  let numerator = in_with_fee * reserve_out;
-  let denominator = default_fee_denominator * reserve_in + in_with_fee;
-  return Math.floor(numerator / denominator);
-};
 
 if (!poolUtxo.output.plutusData) {
   throw new Error("No datum in pool utxo");
@@ -183,7 +109,6 @@ const oldPoolAdaTokenSupply = Number(oldPoolDatum.fields[4].int);
 const oldPoolUsdcSupply = Number(oldPoolDatum.fields[5].int);
 const base_fee_a_numerator = 6;
 
-// const assetBAmount = calculate_amount_out(oldPoolAdaTokenSupply, oldPoolUsdcSupply, 15000000, base_fee_a_numerator);
 const assetBAmount = calculate_amount_out(
   oldPoolAdaTokenSupply,
   oldPoolUsdcSupply,
@@ -210,16 +135,13 @@ const poolDatum = mConStr0([
   mConStr0([]),
 ]);
 
-// console.log("assetBAmount:", assetBAmount);
-// console.log("assetBAmountTest:", assetBAmountTest);
 console.log("oldPoolAdaTokenSupply:", oldPoolAdaTokenSupply);
 console.log("oldPoolUsdcSupply:", oldPoolUsdcSupply);
 console.log("orderBalance:", orderBalance);
 console.log("lorenzoSmartAddr:", lorenzoSmartAddr);
 
 const invalidBefore = unixTimeToEnclosingSlot(
-  // (Date.now() - 90000),
-  Date.now() - 50000,
+  Date.now() - 45000,
   SLOT_CONFIG_NETWORK.mainnet
 );
 
