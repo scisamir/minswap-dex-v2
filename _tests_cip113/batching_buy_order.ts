@@ -33,7 +33,6 @@ import {
   usdcUnit,
   usdcAdaLpAssetName,
   usdcAssetB,
-  lorenzoSmartAddr,
   NETWORK_ID,
   orderScriptTxHash,
   orderScriptTxIndex,
@@ -42,6 +41,11 @@ import {
   poolBatchingScriptTxHash,
   poolBatchingScriptTxIndex,
   calculate_amount_out,
+  lorenzoWallet,
+  lorenzoUtxos,
+  lorenzoAddress,
+  lorenzoVK,
+  lorenzoCollateral,
 } from "./setup.js";
 
 console.log(
@@ -94,7 +98,7 @@ console.log("orderReceiverAddr:", orderReceiverAddr, "\n");
 const usedBatcherFee = 2800000; // -> changes here
 const orderBalance = orderUtxoBalance - orderSwapAmount - usedBatcherFee;
 const poolBatchingRedeemer = mConStr0([
-  0, // batcher index
+  1, // batcher index
   [usedBatcherFee], // used_batcher_fee, first index: 3 ADA
   "00", // minswap used "00"
   mConStr1([]),
@@ -138,7 +142,6 @@ const poolDatum = mConStr0([
 console.log("oldPoolAdaTokenSupply:", oldPoolAdaTokenSupply);
 console.log("oldPoolUsdcSupply:", oldPoolUsdcSupply);
 console.log("orderBalance:", orderBalance);
-console.log("lorenzoSmartAddr:", lorenzoSmartAddr);
 
 const invalidBefore = unixTimeToEnclosingSlot(
   Date.now() - 45000,
@@ -240,21 +243,32 @@ const unsignedTx = await txBuilder
     globalSettingsUtxo.input.outputIndex
   )
   .txInCollateral(
-    wallet1Collateral.input.txHash,
-    wallet1Collateral.input.outputIndex,
-    wallet1Collateral.output.amount,
-    wallet1Collateral.output.address
+    lorenzoCollateral.input.txHash,
+    lorenzoCollateral.input.outputIndex,
+    lorenzoCollateral.output.amount,
+    lorenzoCollateral.output.address
   )
+  // .txInCollateral(
+  //   wallet1Collateral.input.txHash,
+  //   wallet1Collateral.input.outputIndex,
+  //   wallet1Collateral.output.amount,
+  //   wallet1Collateral.output.address
+  // )
   .invalidBefore(invalidBefore)
   .invalidHereafter(invalidAfter)
   // transaction must be executed by authorized batcher, wallet1VK
-  .requiredSignerHash(wallet1VK)
-  .changeAddress(wallet1Address)
-  .selectUtxosFrom(wallet1Utxos)
+  .requiredSignerHash(lorenzoVK)
+  .changeAddress(lorenzoAddress)
+  .selectUtxosFrom(lorenzoUtxos)
+  // .requiredSignerHash(wallet1VK)
+  // .changeAddress(wallet1Address)
+  // .selectUtxosFrom(wallet1Utxos)
   //   .setFee("4108405")
   .complete();
 
-const signedTx = await wallet1.signTx(unsignedTx);
-const txHash = await wallet1.submitTx(signedTx);
+const signedTx = await lorenzoWallet.signTx(unsignedTx);
+const txHash = await lorenzoWallet.submitTx(signedTx);
+// const signedTx = await wallet1.signTx(unsignedTx);
+// const txHash = await wallet1.submitTx(signedTx);
 
 console.log("pool batching tx hash:", txHash);

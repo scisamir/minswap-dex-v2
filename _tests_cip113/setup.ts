@@ -106,6 +106,32 @@ if (!wallet2Collateral) {
   throw new Error("No collateral utxo found 2");
 }
 
+// Setup lorenzo wallet
+const lorenzoPassphrase = process.env.LORENZO_WALLET_PASSPHRASE;
+if (!lorenzoPassphrase) {
+  throw new Error("lorenzoPassphrase does not exist");
+}
+const lorenzoWallet = new MeshWallet({
+  networkId: NETWORK_ID,
+  fetcher: blockchainProvider,
+  submitter: blockchainProvider,
+  key: {
+    type: "mnemonic",
+    words: lorenzoPassphrase.split(" "),
+  },
+});
+const lorenzoAddress = await lorenzoWallet.getChangeAddress();
+const { pubKeyHash: lorenzoVK } = deserializeAddress(lorenzoAddress);
+const lorenzoUtxos = await lorenzoWallet.getUtxos();
+const lorenzoCollateral: UTxO = lorenzoUtxos.filter(
+  (utxo) =>
+    Number(utxo.output.amount[0].quantity) >= 7000000 &&
+    utxo.output.amount.length <= 4
+)[0];
+if (!lorenzoCollateral) {
+  throw new Error("No collateral utxo found 2");
+}
+
 // Setup multisig
 const nativeScript: NativeScript = {
   type: "all",
@@ -424,9 +450,9 @@ console.log("authenPolicyId:", authenPolicyId);
 
 // console.log("wallet1VK:", wallet1VK);
 
-const lorenzoAddress =
-  "addr_test1qqq0cuu96g9hny47un2qcyv7qcs3u70whcdmf06mqj3pkt4wckwszdqepz35tf5h4h9mkce2p4hf3wj239pwhxswwkcq7p5gst";
-const { pubKeyHash: lorenzoVK } = deserializeAddress(lorenzoAddress);
+// const lorenzoAddress =
+//   "addr_test1qqq0cuu96g9hny47un2qcyv7qcs3u70whcdmf06mqj3pkt4wckwszdqepz35tf5h4h9mkce2p4hf3wj239pwhxswwkcq7p5gst";
+// const { pubKeyHash: lorenzoVK } = deserializeAddress(lorenzoAddress);
 const lorenzoSmartAddr = serializePlutusScript(
   { code: cip113ValidatorScript, version: "V3" },
   lorenzoVK,
@@ -507,6 +533,12 @@ export {
   wallet2Utxos,
   wallet2Address,
   wallet2VK,
+  // lorenzo wallet
+  lorenzoWallet,
+  lorenzoCollateral,
+  lorenzoUtxos,
+  lorenzoAddress,
+  lorenzoVK,
   // multisig
   multisigHash,
   multiSigAddress,
@@ -574,7 +606,7 @@ export {
   AdaRemainingLiquidity,
   AdaTotalLiquidity,
   // others
-  lorenzoVK,
+  // lorenzoVK,
   lorenzoSmartAddr,
   NETWORK_ID,
   calculate_amount_out,

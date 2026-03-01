@@ -66,6 +66,28 @@ const wallet2Collateral = wallet2Utxos.filter((utxo) => Number(utxo.output.amoun
 if (!wallet2Collateral) {
     throw new Error("No collateral utxo found 2");
 }
+// Setup lorenzo wallet
+const lorenzoPassphrase = process.env.LORENZO_WALLET_PASSPHRASE;
+if (!lorenzoPassphrase) {
+    throw new Error("lorenzoPassphrase does not exist");
+}
+const lorenzoWallet = new MeshWallet({
+    networkId: NETWORK_ID,
+    fetcher: blockchainProvider,
+    submitter: blockchainProvider,
+    key: {
+        type: "mnemonic",
+        words: lorenzoPassphrase.split(" "),
+    },
+});
+const lorenzoAddress = await lorenzoWallet.getChangeAddress();
+const { pubKeyHash: lorenzoVK } = deserializeAddress(lorenzoAddress);
+const lorenzoUtxos = await lorenzoWallet.getUtxos();
+const lorenzoCollateral = lorenzoUtxos.filter((utxo) => Number(utxo.output.amount[0].quantity) >= 7000000 &&
+    utxo.output.amount.length <= 4)[0];
+if (!lorenzoCollateral) {
+    throw new Error("No collateral utxo found 2");
+}
 // Setup multisig
 const nativeScript = {
     type: "all",
@@ -242,8 +264,9 @@ console.log("usdcCip113Balance:", usdcCip113Balance);
 // console.log("userCip113Addr:", userCip113Addr);
 console.log("authenPolicyId:", authenPolicyId);
 // console.log("wallet1VK:", wallet1VK);
-const lorenzoAddress = "addr_test1qqq0cuu96g9hny47un2qcyv7qcs3u70whcdmf06mqj3pkt4wckwszdqepz35tf5h4h9mkce2p4hf3wj239pwhxswwkcq7p5gst";
-const { pubKeyHash: lorenzoVK } = deserializeAddress(lorenzoAddress);
+// const lorenzoAddress =
+//   "addr_test1qqq0cuu96g9hny47un2qcyv7qcs3u70whcdmf06mqj3pkt4wckwszdqepz35tf5h4h9mkce2p4hf3wj239pwhxswwkcq7p5gst";
+// const { pubKeyHash: lorenzoVK } = deserializeAddress(lorenzoAddress);
 const lorenzoSmartAddr = serializePlutusScript({ code: cip113ValidatorScript, version: "V3" }, lorenzoVK, NETWORK_ID).address;
 console.log(cip113ValidatorHash, lorenzoVK);
 const calculate_amount_out = (reserve_in, reserve_out, amount_in, trading_fee_numerator) => {
@@ -292,6 +315,8 @@ export { blueprint, blockchainProvider, txBuilder,
 wallet1, wallet1Address, wallet1VK, wallet1SK, wallet1Utxos, wallet1Collateral, userCip113Addr, 
 // wallet 2
 wallet2, wallet2Collateral, wallet2Utxos, wallet2Address, wallet2VK, 
+// lorenzo wallet
+lorenzoWallet, lorenzoCollateral, lorenzoUtxos, lorenzoAddress, lorenzoVK, 
 // multisig
 multisigHash, multiSigAddress, 
 // authen
@@ -321,6 +346,7 @@ swapAmount, orderLovelaceAmount,
 // for ADA
 AdaTokenA, AdaAssetA, AdaTokenSupply, AdaSwapAmount, AdaLpAssetName, AdaRemainingLiquidity, AdaTotalLiquidity, 
 // others
-lorenzoVK, lorenzoSmartAddr, NETWORK_ID, calculate_amount_out, 
+// lorenzoVK,
+lorenzoSmartAddr, NETWORK_ID, calculate_amount_out, 
 // reference inputs
 poolBatchingScriptTxHash, poolBatchingScriptTxIndex, poolScriptTxHash, poolScriptTxIndex, orderScriptTxHash, orderScriptTxIndex, };
