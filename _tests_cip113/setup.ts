@@ -29,24 +29,24 @@ import blueprint from "../plutus.json" with { type: "json" };
 import utilBlueprint from "./util_contracts/plutus.json" with { type: "json" };
 import { SHA3 } from "sha3";
 
-const NETWORK_ID = 1;
+const NETWORK_ID = 0;
 
 // Setup blockhain provider as Maestro
-const maestroKey = process.env.MAESTRO_KEY;
-if (!maestroKey) {
-  throw new Error("MAESTRO_KEY does not exist");
-}
-const blockchainProvider = new MaestroProvider({
-  network: "Mainnet",
-  apiKey: maestroKey,
-});
+// const maestroKey = process.env.MAESTRO_KEY;
+// if (!maestroKey) {
+//   throw new Error("MAESTRO_KEY does not exist");
+// }
+// const blockchainProvider = new MaestroProvider({
+//   network: "Preview",
+//   apiKey: maestroKey,
+// });
 
 // Setup blockhain provider as Blockfrost
-// const blockfrostId = process.env.BLOCKFROST_ID;
-// if (!blockfrostId) {
-//     throw new Error("BLOCKFROST_ID does not exist");
-// }
-// const blockchainProvider = new BlockfrostProvider(blockfrostId);
+const blockfrostId = process.env.BLOCKFROST_ID;
+if (!blockfrostId) {
+  throw new Error("BLOCKFROST_ID does not exist");
+}
+const blockchainProvider = new BlockfrostProvider(blockfrostId);
 
 // import wallet1's wallet passphrase and initialize the wallet
 const wallet1Passphrase = process.env.WALLET_PASSPHRASE_ONE;
@@ -132,7 +132,7 @@ const txBuilder = new MeshTxBuilder({
   evaluator: blockchainProvider,
   //   verbose: true,
 });
-txBuilder.setNetwork("mainnet");
+txBuilder.setNetwork("preview");
 
 // constants
 const factoryAssetName = "4d5346";
@@ -402,15 +402,17 @@ const AdaSwapAmount = 2000000;
 const orderLovelaceAmount = 5300000;
 
 // usdc cip113 utxo
-const usdcCip113Utxos = await blockchainProvider.fetchUTxOs(
-  "2dafc93d572ea568ca80dcdc4f73352c36e34868aaaa716e16e2b44b6d173e48",
-  2
-);
+const usdcCip113Utxos = wallet1Utxos;
+// const usdcCip113Utxos = await blockchainProvider.fetchUTxOs(
+//   "2dafc93d572ea568ca80dcdc4f73352c36e34868aaaa716e16e2b44b6d173e48",
+//   2
+// );
 const usdcCip113Utxo = usdcCip113Utxos[0];
 if (!usdcCip113Utxo) {
   throw new Error("usdcCip113Utxo not found");
 }
-const usdcCip113Balance = Number(usdcCip113Utxo.output.amount[1].quantity);
+const usdcCip113Balance = Number(usdcCip113Utxo.output.amount[0].quantity);
+// const usdcCip113Balance = Number(usdcCip113Utxo.output.amount[1].quantity);
 console.log("usdcCip113Balance:", usdcCip113Balance);
 
 // console.log("orderValidatorScriptHash", orderValidatorScriptHash);
