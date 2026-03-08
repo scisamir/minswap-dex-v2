@@ -18,11 +18,11 @@ const unsignedTx = await txBuilder
   //     wallet1Utxos[0].output.amount,
   //     wallet1Utxos[0].output.address,
   // )
+  // .registerStakeCertificate(orderCanclValidatorRewardAddress)
   .registerStakeCertificate(orderValidatorRewardAddress)
-  .registerStakeCertificate(orderCanclValidatorRewardAddress)
   .registerStakeCertificate(poolValidatorRewardAddress)
   .registerStakeCertificate(poolBatchingValidatorRewardAddress)
-  .registerStakeCertificate(cip113RewardAddress)
+  // .registerStakeCertificate(cip113RewardAddress)
   .selectUtxosFrom(wallet1Utxos)
   .changeAddress(wallet1Address)
   .complete();

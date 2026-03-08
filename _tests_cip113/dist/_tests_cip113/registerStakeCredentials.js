@@ -1,4 +1,4 @@
-import { cip113RewardAddress, orderCanclValidatorRewardAddress, orderValidatorRewardAddress, poolBatchingValidatorRewardAddress, poolValidatorRewardAddress, txBuilder, wallet1, wallet1Address, wallet1Utxos, } from "./setup.js";
+import { orderValidatorRewardAddress, poolBatchingValidatorRewardAddress, poolValidatorRewardAddress, txBuilder, wallet1, wallet1Address, wallet1Utxos, } from "./setup.js";
 // withdraw zero setup (register all stake cert) - Merged
 const unsignedTx = await txBuilder
     // .txIn(
@@ -7,11 +7,11 @@ const unsignedTx = await txBuilder
     //     wallet1Utxos[0].output.amount,
     //     wallet1Utxos[0].output.address,
     // )
+    // .registerStakeCertificate(orderCanclValidatorRewardAddress)
     .registerStakeCertificate(orderValidatorRewardAddress)
-    .registerStakeCertificate(orderCanclValidatorRewardAddress)
     .registerStakeCertificate(poolValidatorRewardAddress)
     .registerStakeCertificate(poolBatchingValidatorRewardAddress)
-    .registerStakeCertificate(cip113RewardAddress)
+    // .registerStakeCertificate(cip113RewardAddress)
     .selectUtxosFrom(wallet1Utxos)
     .changeAddress(wallet1Address)
     .complete();

@@ -2,10 +2,13 @@ import { mConStr0, mConStr1 } from "@meshsdk/core";
 import { AdaAssetA, authenPolicyId, blockchainProvider, factoryAddress, factoryAssetName, factoryValidatorScript, AdaTokenSupply, maxInt64, poolAuthAssetName, poolBatchingValidatorHash, poolValidatorAddress, AdaRemainingLiquidity, AdaTotalLiquidity, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, cip113ValidatorScript, cip113RewardAddress, usdcUnit, usdcSupply, usdcAssetB, usdcAdaLpAssetName, usdcCip113Balance, usdcCip113Utxo, } from "./setup.js";
 // Authen
 // (Mainnet)
-const authenScriptTxHash = "fa454e88398d43e4e4a00c9134be743c4122c8a9d4bee8b732fddadf9f596f0c";
+// const authenScriptTxHash =
+//   "fa454e88398d43e4e4a00c9134be743c4122c8a9d4bee8b732fddadf9f596f0c";
 // (Preprod)
 // const authenScriptTxHash =
 //   "c78c3026cdaf14b499e479025bded8da454a06c66028eecb0cb6820bae669a4c";
+// (Preview)
+const authenScriptTxHash = "752f2e2ddb8d1c4466f6a2d3f36bea7eab516f26ff585f16eb81d939ece449d1";
 const authenScriptTxIndex = 0;
 // Factory
 // const factoryScriptTxHash = "";

@@ -142,12 +142,12 @@ console.log("lorenzoSmartAddr:", lorenzoSmartAddr);
 
 const invalidBefore = unixTimeToEnclosingSlot(
   Date.now() - 45000,
-  SLOT_CONFIG_NETWORK.mainnet
+  SLOT_CONFIG_NETWORK.preview
 );
 
 const invalidAfter = unixTimeToEnclosingSlot(
   Date.now() + 8 * 60 * 1000, // 8 mins
-  SLOT_CONFIG_NETWORK.mainnet
+  SLOT_CONFIG_NETWORK.preview
 );
 
 const rMem = 1500000;

@@ -32,21 +32,21 @@ import { SHA3 } from "sha3";
 const NETWORK_ID = 0;
 
 // Setup blockhain provider as Maestro
-// const maestroKey = process.env.MAESTRO_KEY;
-// if (!maestroKey) {
-//   throw new Error("MAESTRO_KEY does not exist");
-// }
-// const blockchainProvider = new MaestroProvider({
-//   network: "Preview",
-//   apiKey: maestroKey,
-// });
+const maestroKey = process.env.MAESTRO_KEY;
+if (!maestroKey) {
+  throw new Error("MAESTRO_KEY does not exist");
+}
+const blockchainProvider = new MaestroProvider({
+  network: "Preview",
+  apiKey: maestroKey,
+});
 
 // Setup blockhain provider as Blockfrost
-const blockfrostId = process.env.BLOCKFROST_ID;
-if (!blockfrostId) {
-  throw new Error("BLOCKFROST_ID does not exist");
-}
-const blockchainProvider = new BlockfrostProvider(blockfrostId);
+// const blockfrostId = process.env.BLOCKFROST_ID;
+// if (!blockfrostId) {
+//   throw new Error("BLOCKFROST_ID does not exist");
+// }
+// const blockchainProvider = new BlockfrostProvider(blockfrostId);
 
 // import wallet1's wallet passphrase and initialize the wallet
 const wallet1Passphrase = process.env.WALLET_PASSPHRASE_ONE;
@@ -66,7 +66,7 @@ const wallet1 = new MeshWallet({
 const wallet1Address = await wallet1.getChangeAddress();
 
 const wallet1Utxos = await wallet1.getUtxos();
-// console.log("wallet1Address:", wallet1Address);
+console.log("wallet1Address:", wallet1Address);
 // console.log("wallet1Utxos:", wallet1Utxos);
 const wallet1Collateral: UTxO = wallet1Utxos.filter(
   (utxo) =>
@@ -100,7 +100,7 @@ const wallet2Utxos = await wallet2.getUtxos();
 const wallet2Collateral: UTxO = wallet2Utxos.filter(
   (utxo) =>
     Number(utxo.output.amount[0].quantity) >= 7000000 &&
-    utxo.output.amount.length <= 4
+    utxo.output.amount.length === 1
 )[0];
 if (!wallet2Collateral) {
   throw new Error("No collateral utxo found 2");
@@ -179,13 +179,17 @@ const authenValidator = blueprint.validators.filter((v) =>
   v.title.includes("authen_minting_policy.authen_minting_policy.mint")
 );
 // (Mainnet)
-const dexInitParamTxHash =
-  "fe4e4783114376697bf8f752262b448fbe3490ce3bea0be98a6f8e33c282cd29"; // change this and below on each dex init
-const dexInitParamTxIndex = 1;
+// const dexInitParamTxHash =
+//   "fe4e4783114376697bf8f752262b448fbe3490ce3bea0be98a6f8e33c282cd29"; // change this and below on each dex init
+// const dexInitParamTxIndex = 1;
 // (Preprod)
 // const dexInitParamTxHash =
 //   "e68b7a3d147090a551fb62d979d647c364dda41ce3ad511083d66bdb35b2176b"; // change this and below on each dex init
 // const dexInitParamTxIndex = 1;
+// (Preview)
+const dexInitParamTxHash =
+  "da89a11309e5f38a977e3a8fe986f72c84302125a6bc08b25ae93c98003e50da"; // change this and below on each dex init
+const dexInitParamTxIndex = 1;
 const authenValidatorScript = applyParamsToScript(
   authenValidator[0].compiledCode,
   [outputReference(dexInitParamTxHash, dexInitParamTxIndex)],
@@ -384,10 +388,10 @@ const AdaLpAssetName = sha3(AdaAssetASha256 + assetBSha256);
 // console.log("tokenB:", tokenB);
 console.log("usdcAdaLpAssetName:", usdcAdaLpAssetName);
 // asset supplies
-// const AdaTokenSupply = 1500000000;
-// const myTokenOneSupply = 1500;
-const AdaTokenSupply = 15000000;
-const myTokenOneSupply = 15;
+const AdaTokenSupply = 1500000000;
+const myTokenOneSupply = 1500;
+// const AdaTokenSupply = 15000000;
+// const myTokenOneSupply = 15;
 const usdcSupply = myTokenOneSupply;
 const AdaTotalLiquidity = calculateInitialLiquidity(
   AdaTokenSupply,
@@ -402,17 +406,15 @@ const AdaSwapAmount = 2000000;
 const orderLovelaceAmount = 5300000;
 
 // usdc cip113 utxo
-const usdcCip113Utxos = wallet1Utxos;
-// const usdcCip113Utxos = await blockchainProvider.fetchUTxOs(
-//   "2dafc93d572ea568ca80dcdc4f73352c36e34868aaaa716e16e2b44b6d173e48",
-//   2
-// );
+const usdcCip113Utxos = await blockchainProvider.fetchUTxOs(
+  "8caddc2d23e2831d759ddda42c42908da78532992d18ce3f63f779bfa63f23d1",
+  0
+);
 const usdcCip113Utxo = usdcCip113Utxos[0];
 if (!usdcCip113Utxo) {
   throw new Error("usdcCip113Utxo not found");
 }
-const usdcCip113Balance = Number(usdcCip113Utxo.output.amount[0].quantity);
-// const usdcCip113Balance = Number(usdcCip113Utxo.output.amount[1].quantity);
+const usdcCip113Balance = Number(usdcCip113Utxo.output.amount[1].quantity);
 console.log("usdcCip113Balance:", usdcCip113Balance);
 
 // console.log("orderValidatorScriptHash", orderValidatorScriptHash);
@@ -427,7 +429,7 @@ console.log("authenPolicyId:", authenPolicyId);
 // console.log("wallet1VK:", wallet1VK);
 
 const lorenzoAddress =
-  "addr_test1qqq0cuu96g9hny47un2qcyv7qcs3u70whcdmf06mqj3pkt4wckwszdqepz35tf5h4h9mkce2p4hf3wj239pwhxswwkcq7p5gst";
+  "addr_test1qrc2acqmw4d6u72thft9a8eddlwzscrs3ewnquxnzdfefl2rvrppl4x24vc63cyx3ca5r0kyfpde5dvc8xrcq8l3q7zqkxvd3c";
 const { pubKeyHash: lorenzoVK } = deserializeAddress(lorenzoAddress);
 const lorenzoSmartAddr = serializePlutusScript(
   { code: cip113ValidatorScript, version: "V3" },
@@ -454,14 +456,17 @@ const calculate_amount_out = (
 
 // -------------Working hashes---------------- (Preview)
 // pool batching ref script
-// const poolBatchingScriptTxHash = "85e83c7cab230207f913245a43c9c25efaa9124a69e6116cb2bb6d966364ab2a";
-// const poolBatchingScriptTxIndex = 0;
-// // pool ref script
-// const poolScriptTxHash = "7f3ae62c327604df8689f53ba4079f4c42e5c5dc8754c2dd27172d1d124f7f4b";
-// const poolScriptTxIndex = 0;
-// // order ref script
-// const orderScriptTxHash = "c5291bac8918c4067783388da62e1d68c8fb8cd75fe50dc71a74bcb8e3caae7b";
-// const orderScriptTxIndex = 0;
+const poolBatchingScriptTxHash =
+  "f9e3d3075490e1653423a33836b43764af07fd94af54d1e7c37f4dacb0633482";
+const poolBatchingScriptTxIndex = 0;
+// pool ref script
+const poolScriptTxHash =
+  "d5f407e11eae287f3e18db9a0f44d060fdbab0ae7957ee63ce1ffe039c8aaab3";
+const poolScriptTxIndex = 0;
+// order ref script
+const orderScriptTxHash =
+  "a112d8f1614490181ee4ac7bc0a1189f298591376bece2c1e3c7e9bd3317f879";
+const orderScriptTxIndex = 0;
 
 // -------------Working hashes---------------- (Preprod)
 // pool batching ref script
@@ -478,18 +483,18 @@ const calculate_amount_out = (
 // const orderScriptTxIndex = 0;
 
 // -------------Working hashes---------------- (Mainnet)
-// pool batching ref script
-const poolBatchingScriptTxHash =
-  "c3e7559ed8c00d25ccaff20b485dd4573843070ae96b25d2ce2b0b65c8c03d8c";
-const poolBatchingScriptTxIndex = 0;
-// pool ref script
-const poolScriptTxHash =
-  "47e405c8fe12fa891b01497658796be1317dea037647f4361daca39a7f33db82";
-const poolScriptTxIndex = 0;
-// order ref script
-const orderScriptTxHash =
-  "271af0b304ec2cac2e02f96d0557a71f529a087e8aeb2a22b35ec53256dd366a";
-const orderScriptTxIndex = 0;
+// // pool batching ref script
+// const poolBatchingScriptTxHash =
+//   "c3e7559ed8c00d25ccaff20b485dd4573843070ae96b25d2ce2b0b65c8c03d8c";
+// const poolBatchingScriptTxIndex = 0;
+// // pool ref script
+// const poolScriptTxHash =
+//   "47e405c8fe12fa891b01497658796be1317dea037647f4361daca39a7f33db82";
+// const poolScriptTxIndex = 0;
+// // order ref script
+// const orderScriptTxHash =
+//   "271af0b304ec2cac2e02f96d0557a71f529a087e8aeb2a22b35ec53256dd366a";
+// const orderScriptTxIndex = 0;
 
 export {
   blueprint,
