@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 dotenv.config();
 import blueprint from "../plutus.json" with { type: "json" };
 import utilBlueprint from "./util_contracts/plutus.json" with { type: "json" };
+import programmableTokensBlueprint from "./programmableTokens/blueprint.json" with { type: "json" };
 import { SHA3 } from "sha3";
 const NETWORK_ID = 0;
 // Setup blockhain provider as Maestro
@@ -107,13 +108,27 @@ const calculateInitialLiquidity = (out_a, out_b) => {
     return sqrt;
 };
 // Always true validator
-const cip113Validator = utilBlueprint.validators.filter((v) => v.title.includes("cip113.transfer.withdraw") // withdraw 0
-);
-const cip113ValidatorScript = applyParamsToScript(cip113Validator[0].compiledCode, [], "JSON");
-const cip113ValidatorHash = resolveScriptHash(cip113ValidatorScript, "V3");
-const cip113RewardAddress = serializeRewardAddress(cip113ValidatorHash, true, NETWORK_ID);
-// User CIP 113 Address
-const userCip113Addr = serializePlutusScript({ code: cip113ValidatorScript, version: "V3" }, wallet1VK, NETWORK_ID).address;
+// const cip113Validator = utilBlueprint.validators.filter(
+//   (v) => v.title.includes("cip113.transfer.withdraw") // withdraw 0
+// );
+// const cip113ValidatorScript = applyParamsToScript(
+//   cip113Validator[0].compiledCode,
+//   [],
+//   "JSON"
+// );
+// const cip113ValidatorHash = resolveScriptHash(cip113ValidatorScript, "V3");
+// const cip113RewardAddress = serializeRewardAddress(
+//   cip113ValidatorHash,
+//   true,
+//   NETWORK_ID
+// );
+const programmableGlobalHash = "5db48c6383a98a53ca163e58c0f8c9dbc932d65ba070daff97851282";
+const programmableBaseValidator = programmableTokensBlueprint.validators.find((v) => v.title === "programmable_logic_base.programmable_logic_base.spend");
+if (!programmableBaseValidator) {
+    throw new Error("programmable logic base validator not found");
+}
+const baseScript = applyParamsToScript(programmableBaseValidator.compiledCode, [conStr(1, [builtinByteString(programmableGlobalHash)])], "JSON");
+const baseHash = resolveScriptHash(baseScript, "V3");
 // Authen Minting Policy
 const authenValidator = blueprint.validators.filter((v) => v.title.includes("authen_minting_policy.authen_minting_policy.mint"));
 // (Mainnet)
@@ -125,8 +140,8 @@ const authenValidator = blueprint.validators.filter((v) => v.title.includes("aut
 //   "e68b7a3d147090a551fb62d979d647c364dda41ce3ad511083d66bdb35b2176b"; // change this and below on each dex init
 // const dexInitParamTxIndex = 1;
 // (Preview)
-const dexInitParamTxHash = "da89a11309e5f38a977e3a8fe986f72c84302125a6bc08b25ae93c98003e50da"; // change this and below on each dex init
-const dexInitParamTxIndex = 1;
+const dexInitParamTxHash = "d5cd7169ad7adc2fba17894ce0531be54d9e8908b2904fb484bce8577bcbd893"; // change this and below on each dex init
+const dexInitParamTxIndex = 3;
 const authenValidatorScript = applyParamsToScript(authenValidator[0].compiledCode, [outputReference(dexInitParamTxHash, dexInitParamTxIndex)], "JSON");
 const authenPolicyId = resolveScriptHash(authenValidatorScript, "V3");
 const authenAddress = serializePlutusScript({ code: authenValidatorScript, version: "V3" }, undefined, NETWORK_ID).address;
@@ -135,9 +150,9 @@ const poolValidator = blueprint.validators.filter((v) => v.title.includes("pool_
 );
 const poolValidatorScript = applyParamsToScript(poolValidator[0].compiledCode, [builtinByteString(authenPolicyId)], "JSON");
 const poolStakeCredentialHash = resolveScriptHash(poolValidatorScript, "V3");
-const poolValidatorAddress = serializePlutusScript({ code: cip113ValidatorScript, version: "V3" }, poolStakeCredentialHash, NETWORK_ID, true).address;
+const poolValidatorAddress = serializePlutusScript({ code: baseScript, version: "V3" }, poolStakeCredentialHash, NETWORK_ID, true).address;
 const poolValidatorRewardAddress = serializeRewardAddress(poolStakeCredentialHash, true, NETWORK_ID);
-const poolAddressData = scriptAddress(cip113ValidatorHash, poolStakeCredentialHash, true);
+const poolAddressData = scriptAddress(baseHash, poolStakeCredentialHash, true);
 const poolValidatorScriptHash = poolStakeCredentialHash;
 // console.log("poolValidatorScriptHash:", poolValidatorScriptHash);
 // Pool Batching Validator
@@ -161,21 +176,15 @@ const orderCanclValidatorHash = resolveScriptHash(orderCanclValidatorScript, "V3
 const orderCanclValidatorRewardAddress = serializeRewardAddress(orderCanclValidatorHash, true, NETWORK_ID);
 // Order Validator
 const orderValidator = blueprint.validators.filter((v) => v.title.includes("order_validator.order_validator.withdraw"));
-// const orderValidator = utilBlueprint.validators.filter(v => (
-//     v.title.includes("always_success_withdraw.always_success.withdraw")
-// ));
 const orderValidatorScript = applyParamsToScript(orderValidator[0].compiledCode, [
     conStr(1, [builtinByteString(poolBatchingValidatorHash)]),
     conStr(1, [builtinByteString(orderCanclValidatorHash)]),
 ], "JSON");
-// const orderValidatorScript = applyParamsToScript(
-//     orderValidator[0].compiledCode,
-//     [],
-//     "JSON",
-// );
 const orderValidatorScriptHash = resolveScriptHash(orderValidatorScript, "V3");
-const orderValidatorAddress = serializePlutusScript({ code: cip113ValidatorScript, version: "V3" }, orderValidatorScriptHash, NETWORK_ID, true).address;
+const orderValidatorAddress = serializePlutusScript({ code: baseScript, version: "V3" }, orderValidatorScriptHash, NETWORK_ID, true).address;
 const orderValidatorRewardAddress = serializeRewardAddress(orderValidatorScriptHash, true, NETWORK_ID);
+// User CIP 113 Address
+const userCip113Addr = serializePlutusScript({ code: baseScript, version: "V3" }, wallet1VK, NETWORK_ID, false).address;
 // console.log("orderValidatorScriptHash:", orderValidatorScriptHash);
 // console.log('orderValidator Reward Address:', orderValidatorRewardAddress);
 // tests
@@ -197,11 +206,10 @@ const alwaysSuccessMintValidatorHash = resolveScriptHash(alwaysSuccessValidatorM
 // pool utils
 const AdaTokenA = "";
 const AdaAssetA = mConStr0(["", AdaTokenA]);
-const usdcTokenB = stringToHex("realUSDC");
-const usdcUnit = cip113ValidatorHash + usdcTokenB;
-const usdcAssetB = mConStr0([cip113ValidatorHash, usdcTokenB]);
-const tokenB = stringToHex("myTokenOne");
-const assetB = mConStr0([alwaysSuccessMintValidatorHash, tokenB]);
+const sTokenPolicyId = "ec107b98e0026f9c8a4a010eaa9d1ca81aa53c0d862e5cb488f1cf85";
+const sTokenB = stringToHex("sToken");
+const sTokenUnit = sTokenPolicyId + sTokenB;
+const sTokenAssetB = mConStr0([sTokenPolicyId, sTokenB]);
 // compute lp asset name
 const sha3 = (hex) => {
     const hash = new SHA3(256);
@@ -209,19 +217,15 @@ const sha3 = (hex) => {
     return hash.digest("hex");
 };
 const AdaAssetASha256 = sha3("" + AdaTokenA);
-const usdcAssetBSha256 = sha3(usdcUnit);
-const usdcAdaLpAssetName = sha3(AdaAssetASha256 + usdcAssetBSha256);
-const assetBSha256 = sha3(alwaysSuccessMintValidatorHash + tokenB);
-const AdaLpAssetName = sha3(AdaAssetASha256 + assetBSha256);
-// console.log("alwaysSuccessMintValidatorHash:", alwaysSuccessMintValidatorHash);
-// console.log("tokenB:", tokenB);
-console.log("usdcAdaLpAssetName:", usdcAdaLpAssetName);
+const sTokenAssetBSha256 = sha3(sTokenUnit);
+const sTokenAdaLpAssetName = sha3(AdaAssetASha256 + sTokenAssetBSha256);
+console.log("sTokenAdaLpAssetName:", sTokenAdaLpAssetName);
 // asset supplies
 const AdaTokenSupply = 1500000000;
 const myTokenOneSupply = 1500;
 // const AdaTokenSupply = 15000000;
 // const myTokenOneSupply = 15;
-const usdcSupply = myTokenOneSupply;
+const sTokenSupply = myTokenOneSupply;
 const AdaTotalLiquidity = calculateInitialLiquidity(AdaTokenSupply, myTokenOneSupply);
 const maxInt64 = 9223372036854775807n;
 const AdaRemainingLiquidity = maxInt64 - (BigInt(AdaTotalLiquidity) - 10n);
@@ -229,14 +233,22 @@ const AdaRemainingLiquidity = maxInt64 - (BigInt(AdaTotalLiquidity) - 10n);
 const swapAmount = 5;
 const AdaSwapAmount = 2000000;
 const orderLovelaceAmount = 5300000;
-// usdc cip113 utxo
-const usdcCip113Utxos = await blockchainProvider.fetchUTxOs("8caddc2d23e2831d759ddda42c42908da78532992d18ce3f63f779bfa63f23d1", 0);
-const usdcCip113Utxo = usdcCip113Utxos[0];
-if (!usdcCip113Utxo) {
-    throw new Error("usdcCip113Utxo not found");
+console.log("userCip113Addr:", userCip113Addr);
+// sToken cip113 utxo from the live smart-wallet state
+const sTokenCip113Utxos = (await blockchainProvider.fetchAddressUTxOs(userCip113Addr)).filter((utxo) => utxo.output.amount.some((a) => a.unit === sTokenUnit));
+const sTokenCip113Utxo = [...sTokenCip113Utxos].sort((a, b) => {
+    const aQty = BigInt(a.output.amount.find((amount) => amount.unit === sTokenUnit)?.quantity ??
+        "0");
+    const bQty = BigInt(b.output.amount.find((amount) => amount.unit === sTokenUnit)?.quantity ??
+        "0");
+    return aQty === bQty ? 0 : aQty > bQty ? -1 : 1;
+})[0];
+if (!sTokenCip113Utxo) {
+    throw new Error("sTokenCip113Utxo not found");
 }
-const usdcCip113Balance = Number(usdcCip113Utxo.output.amount[1].quantity);
-console.log("usdcCip113Balance:", usdcCip113Balance);
+const sTokenCip113Balance = Number(sTokenCip113Utxo.output.amount[1].quantity);
+console.log("sTokenCip113Utxos:", sTokenCip113Utxos.length);
+console.log("sTokenCip113Balance:", sTokenCip113Balance);
 // console.log("orderValidatorScriptHash", orderValidatorScriptHash);
 // console.log("poolBatchingValidatorHash", poolBatchingValidatorHash);
 // console.log("poolValidatorScriptHash", poolValidatorScriptHash);
@@ -248,8 +260,8 @@ console.log("authenPolicyId:", authenPolicyId);
 // console.log("wallet1VK:", wallet1VK);
 const lorenzoAddress = "addr_test1qrc2acqmw4d6u72thft9a8eddlwzscrs3ewnquxnzdfefl2rvrppl4x24vc63cyx3ca5r0kyfpde5dvc8xrcq8l3q7zqkxvd3c";
 const { pubKeyHash: lorenzoVK } = deserializeAddress(lorenzoAddress);
-const lorenzoSmartAddr = serializePlutusScript({ code: cip113ValidatorScript, version: "V3" }, lorenzoVK, NETWORK_ID).address;
-console.log(cip113ValidatorHash, lorenzoVK);
+const lorenzoSmartAddr = serializePlutusScript({ code: baseScript, version: "V3" }, lorenzoVK, NETWORK_ID).address;
+console.log(baseHash, lorenzoVK);
 const calculate_amount_out = (reserve_in, reserve_out, amount_in, trading_fee_numerator) => {
     const default_fee_denominator = 10000;
     let diff = default_fee_denominator - trading_fee_numerator;
@@ -260,13 +272,13 @@ const calculate_amount_out = (reserve_in, reserve_out, amount_in, trading_fee_nu
 };
 // -------------Working hashes---------------- (Preview)
 // pool batching ref script
-const poolBatchingScriptTxHash = "f9e3d3075490e1653423a33836b43764af07fd94af54d1e7c37f4dacb0633482";
+const poolBatchingScriptTxHash = "969c0ee422489749e0cb3d080877c7046866ed5718400e6b9d816bb6db38c2cb";
 const poolBatchingScriptTxIndex = 0;
 // pool ref script
-const poolScriptTxHash = "d5f407e11eae287f3e18db9a0f44d060fdbab0ae7957ee63ce1ffe039c8aaab3";
+const poolScriptTxHash = "1748d195b78c3be99d6c058175b485e4587fad32f5ec0a545c67da9ff6fa228d";
 const poolScriptTxIndex = 0;
 // order ref script
-const orderScriptTxHash = "a112d8f1614490181ee4ac7bc0a1189f298591376bece2c1e3c7e9bd3317f879";
+const orderScriptTxHash = "64b79b6b3964a6bd9cb54c038137741b42e45a4ea721f1ae739d5cac172efb3b";
 const orderScriptTxIndex = 0;
 // -------------Working hashes---------------- (Preprod)
 // pool batching ref script
@@ -314,7 +326,9 @@ poolValidatorAddress, poolValidatorRewardAddress, poolValidatorScript, poolValid
 // pool batching
 poolBatchingValidatorHash, poolBatchingValidatorRewardAddress, poolBatchingValidatorScript, 
 // cip 113
-cip113Validator, cip113ValidatorScript, cip113ValidatorHash, cip113RewardAddress, usdcTokenB, usdcAssetB, usdcAdaLpAssetName, usdcUnit, usdcSupply, usdcCip113Utxo, usdcCip113Balance, 
+programmableBaseValidator, baseScript, baseHash, 
+// baseRewardAddress,
+sTokenB, sTokenAssetB, sTokenAdaLpAssetName, sTokenUnit, sTokenSupply, sTokenCip113Utxo, sTokenCip113Balance, 
 // always success mint
 alwaysSuccessValidatorMintScript, alwaysSuccessMintValidatorHash, 
 // constants
@@ -322,11 +336,11 @@ factoryAssetName, poolAuthAssetName, globalSettingAssetName,
 // Utils
 calculateInitialLiquidity, 
 // pool utils
-tokenB, assetB, myTokenOneSupply, maxInt64, 
+myTokenOneSupply, maxInt64, 
 // order utils
 swapAmount, orderLovelaceAmount, 
 // for ADA
-AdaTokenA, AdaAssetA, AdaTokenSupply, AdaSwapAmount, AdaLpAssetName, AdaRemainingLiquidity, AdaTotalLiquidity, 
+AdaTokenA, AdaAssetA, AdaTokenSupply, AdaSwapAmount, AdaRemainingLiquidity, AdaTotalLiquidity, 
 // others
 lorenzoVK, lorenzoSmartAddr, NETWORK_ID, calculate_amount_out, 
 // reference inputs

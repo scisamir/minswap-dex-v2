@@ -1,5 +1,5 @@
 import { mConStr0, mConStr1, mScriptAddress, } from "@meshsdk/core";
-import { authenPolicyId, orderLovelaceAmount, orderValidatorAddress, AdaSwapAmount, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK, cip113ValidatorHash, usdcAdaLpAssetName, } from "./setup.js";
+import { authenPolicyId, orderLovelaceAmount, orderValidatorAddress, AdaSwapAmount, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK, baseHash, sTokenAdaLpAssetName, } from "./setup.js";
 const orderStep = mConStr0([
     mConStr1([]), // True (a_to_b_direction)
     mConStr0([AdaSwapAmount]), // swap_amount_option
@@ -9,20 +9,20 @@ const orderStep = mConStr0([
 const orderDatum = mConStr0([
     mConStr0([wallet1VK]),
     // user address has to be smart address (cip 113 address)
-    mScriptAddress(cip113ValidatorHash, wallet1VK),
+    mScriptAddress(baseHash, wallet1VK),
     mConStr0([]),
     // user address has to be smart address (cip 113 address)
-    mScriptAddress(cip113ValidatorHash, wallet1VK),
+    mScriptAddress(baseHash, wallet1VK),
     mConStr0([]),
     mConStr0([
         authenPolicyId, // policy id
-        usdcAdaLpAssetName, // asset name
+        sTokenAdaLpAssetName, // asset name
     ]), // changes according to the related liquidity pool
     orderStep,
     6000000, // max_batcher_fee: 6 ADA
     mConStr1([]), // mConStr0([[(Date.now() + (10 * 60 * 1000)), 0]]), // 10 mins exp time; tip 0
 ]);
-console.log("usdcAdaLpAssetName:", usdcAdaLpAssetName);
+console.log("sTokenAdaLpAssetName:", sTokenAdaLpAssetName);
 const unsignedTx = await txBuilder
     .txOut(orderValidatorAddress, [
     { unit: "lovelace", quantity: String(orderLovelaceAmount + AdaSwapAmount) }, // batcher fee is deducted from here

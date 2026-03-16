@@ -1,115 +1,254 @@
-import { mConStr0, mConStr1 } from "@meshsdk/core";
-import { AdaAssetA, authenPolicyId, blockchainProvider, factoryAddress, factoryAssetName, factoryValidatorScript, AdaTokenSupply, maxInt64, poolAuthAssetName, poolBatchingValidatorHash, poolValidatorAddress, AdaRemainingLiquidity, AdaTotalLiquidity, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, cip113ValidatorScript, cip113RewardAddress, usdcUnit, usdcSupply, usdcAssetB, usdcAdaLpAssetName, usdcCip113Balance, usdcCip113Utxo, } from "./setup.js";
-// Authen
-// (Mainnet)
-// const authenScriptTxHash =
-//   "fa454e88398d43e4e4a00c9134be743c4122c8a9d4bee8b732fddadf9f596f0c";
-// (Preprod)
-// const authenScriptTxHash =
-//   "c78c3026cdaf14b499e479025bded8da454a06c66028eecb0cb6820bae669a4c";
-// (Preview)
-const authenScriptTxHash = "752f2e2ddb8d1c4466f6a2d3f36bea7eab516f26ff585f16eb81d939ece449d1";
+import { applyParamsToScript, byteString, conStr, conStr0, integer, list, deserializeDatum, mConStr0, mConStr1, } from "@meshsdk/core";
+import { SHA3 } from "sha3";
+import { AdaAssetA, authenPolicyId, blockchainProvider, factoryAddress, factoryAssetName, factoryValidatorScript, AdaTokenSupply, maxInt64, poolAuthAssetName, poolBatchingValidatorHash, poolValidatorAddress, AdaRemainingLiquidity, AdaTotalLiquidity, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK, sTokenSupply, } from "./setup.js";
+import { BLACKLIST_MINT_HASH, TOKEN_ASSET_NAME, TOKEN_POLICY_ID, baseCbor, globalRewardAddr, getValidator, protocolParamsPolicyId, registrySpendAddr, blacklistSpendAddr, transferLogicCbor, transferLogicHash, transferLogicRewardAddr, validateConfig, wallet1SmartAddr, } from "./programmableTokens/config.js";
+validateConfig();
+const sTokenUnit = TOKEN_POLICY_ID + TOKEN_ASSET_NAME;
+const sTokenAssetB = mConStr0([TOKEN_POLICY_ID, TOKEN_ASSET_NAME]);
+const sha3 = (hex) => {
+    const hash = new SHA3(256);
+    hash.update(hex, "hex");
+    return hash.digest("hex");
+};
+const adaAssetASha256 = sha3("");
+const sTokenAssetBSha256 = sha3(sTokenUnit);
+const sTokenAdaLpAssetName = sha3(adaAssetASha256 + sTokenAssetBSha256);
+const authenScriptTxHash = "b8faf5ee39ec6015644ccf7a6e86a73603ed3816ca570a1554ac419f901f50d7";
 const authenScriptTxIndex = 0;
-// Factory
-// const factoryScriptTxHash = "";
-// const factoryScriptTxIndex = 0;
 const factoryUtxos = await blockchainProvider.fetchAddressUTxOs(factoryAddress);
 const factoryInput = factoryUtxos[factoryUtxos.length - 1];
 if (!factoryInput) {
     throw new Error("Factory input not found");
 }
-const factoryRedeemer = mConStr0([AdaAssetA, usdcAssetB]);
-// console.log("Asset A unit:", alwaysSuccessMintValidatorHash, tokenA);
-// console.log("Asset B unit:", alwaysSuccessMintValidatorHash, tokenB);
+const factoryRedeemer = mConStr0([AdaAssetA, sTokenAssetB]);
 const factoryNftUnit = authenPolicyId + factoryAssetName;
-const factoryDatum1 = mConStr0(["00", usdcAdaLpAssetName]);
+const factoryDatum1 = mConStr0(["00", sTokenAdaLpAssetName]);
 const factoryDatum2 = mConStr0([
-    usdcAdaLpAssetName,
+    sTokenAdaLpAssetName,
     "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00",
 ]);
-// pool datum
 const poolDatum = mConStr0([
     mConStr1([poolBatchingValidatorHash]),
     AdaAssetA,
-    usdcAssetB,
+    sTokenAssetB,
     AdaTotalLiquidity,
     AdaTokenSupply,
-    usdcSupply,
+    sTokenSupply,
     6,
     6,
     mConStr1([]),
-    mConStr0([]), // ??
+    mConStr0([]),
 ]);
 console.log("AdaTotalLiquidity:", AdaTotalLiquidity);
 console.log("AdaTokenSupply:", AdaTokenSupply);
-console.log("usdcSupply:", usdcSupply);
-console.log("usdcCip113Balance - usdcSupply:", usdcCip113Balance - usdcSupply);
-// console.log("AdaTotalLiquidity:", AdaTotalLiquidity, '\n');
-// console.log("AdaRemainingLiquidity:", AdaRemainingLiquidity, '\n');
-// console.log("AdaRemainingLiquidity String:", String(AdaRemainingLiquidity), '\n');
+console.log("sTokenSupply:", sTokenSupply);
+const globalCbor = applyParamsToScript(getValidator("programmable_logic_global.programmable_logic_global.withdraw"), [byteString(protocolParamsPolicyId)], "JSON");
+console.log("\n=== Registry ===");
+const registryUtxos = await blockchainProvider.fetchAddressUTxOs(registrySpendAddr);
+let registryNodeUtxo = null;
+for (const utxo of registryUtxos) {
+    if (!utxo.output.plutusData)
+        continue;
+    try {
+        const datum = deserializeDatum(utxo.output.plutusData);
+        if ((datum?.fields?.[0]?.bytes ?? "") === TOKEN_POLICY_ID) {
+            registryNodeUtxo = utxo;
+            console.log(`Registry node: ${utxo.input.txHash}#${utxo.input.outputIndex}`);
+            break;
+        }
+    }
+    catch {
+        continue;
+    }
+}
+if (!registryNodeUtxo) {
+    throw new Error(`Registry node not found for policy: ${TOKEN_POLICY_ID}`);
+}
+const registryDatum = deserializeDatum(registryNodeUtxo.output.plutusData);
+const registryTransferHash = registryDatum?.fields?.[2]?.fields?.[0]?.bytes ?? "";
+if (registryTransferHash && registryTransferHash !== transferLogicHash) {
+    throw new Error(`Registry transfer hash ${registryTransferHash} does not match local transfer logic ${transferLogicHash}`);
+}
+const protocolParamsUnit = protocolParamsPolicyId + "50726f746f636f6c506172616d73";
+const protocolParamsAddresses = await blockchainProvider.fetchAssetAddresses(protocolParamsUnit);
+if (!protocolParamsAddresses.length) {
+    throw new Error(`ProtocolParams asset not found on chain. Unit: ${protocolParamsUnit}`);
+}
+const protocolParamsAddressUtxos = await blockchainProvider.fetchAddressUTxOs(protocolParamsAddresses[0].address);
+const protocolParamsUtxo = protocolParamsAddressUtxos.find((u) => u.output.amount.some((a) => a.unit === protocolParamsUnit));
+if (!protocolParamsUtxo) {
+    throw new Error("ProtocolParams UTxO not found");
+}
+console.log("\n=== Smart Wallet UTxOs ===");
+const smartWalletUtxos = await blockchainProvider.fetchAddressUTxOs(wallet1SmartAddr);
+const tokenUtxos = smartWalletUtxos.filter((utxo) => utxo.output.amount.some((a) => a.unit === sTokenUnit));
+if (!tokenUtxos.length) {
+    throw new Error(`No sToken UTxOs found at ${wallet1SmartAddr}`);
+}
+const walletTokenBalance = tokenUtxos.reduce((sum, utxo) => {
+    const qty = utxo.output.amount.find((a) => a.unit === sTokenUnit)?.quantity;
+    return sum + BigInt(qty ?? "0");
+}, 0n);
+console.log("wallet sToken balance:", walletTokenBalance.toString());
+const targetAmount = BigInt(sTokenSupply);
+const selectedUtxos = [];
+let selectedBalance = 0n;
+for (const utxo of tokenUtxos) {
+    const qty = utxo.output.amount.find((a) => a.unit === sTokenUnit)?.quantity;
+    if (!qty)
+        continue;
+    selectedUtxos.push(utxo);
+    selectedBalance += BigInt(qty);
+    if (selectedBalance >= targetAmount)
+        break;
+}
+if (selectedBalance < targetAmount) {
+    throw new Error(`Insufficient sToken balance. Have ${selectedBalance}, need ${targetAmount}`);
+}
+const changeAmount = selectedBalance - targetAmount;
+console.log(`Selected ${selectedUtxos.length} UTxO(s), balance=${selectedBalance}, change=${changeAmount}`);
+console.log("\n=== Blacklist Proofs ===");
+const blacklistUtxos = await blockchainProvider.fetchAddressUTxOs(blacklistSpendAddr);
+if (!blacklistUtxos.length) {
+    throw new Error(`No blacklist nodes found at ${blacklistSpendAddr}`);
+}
+const proofs = [];
+for (const spendUtxo of selectedUtxos) {
+    const coveringNode = blacklistUtxos.find((blUtxo) => {
+        if (!blUtxo.output.plutusData)
+            return false;
+        try {
+            const hasBlacklistPolicy = blUtxo.output.amount.some((a) => a.unit !== "lovelace" && a.unit.startsWith(BLACKLIST_MINT_HASH));
+            if (!hasBlacklistPolicy)
+                return false;
+            const datum = deserializeDatum(blUtxo.output.plutusData);
+            const key = datum?.fields?.[0]?.bytes ?? "";
+            const next = datum?.fields?.[1]?.bytes ?? "";
+            return key < wallet1VK && wallet1VK < next;
+        }
+        catch {
+            return false;
+        }
+    });
+    if (!coveringNode) {
+        throw new Error(`No blacklist covering node for key hash: ${wallet1VK}`);
+    }
+    proofs.push({ spendUtxo, blacklistUtxo: coveringNode });
+}
+const uniqueBlacklistUtxos = [];
+const seen = new Set();
+for (const proof of proofs) {
+    const key = `${proof.blacklistUtxo.input.txHash}#${proof.blacklistUtxo.input.outputIndex}`;
+    if (!seen.has(key)) {
+        seen.add(key);
+        uniqueBlacklistUtxos.push(proof.blacklistUtxo);
+    }
+}
+const txReadOnlyRefs = [
+    ...uniqueBlacklistUtxos.map((u) => ({
+        txHash: u.input.txHash,
+        outputIndex: u.input.outputIndex,
+        label: "blacklistNode",
+    })),
+    {
+        txHash: protocolParamsUtxo.input.txHash,
+        outputIndex: protocolParamsUtxo.input.outputIndex,
+        label: "protocolParams",
+    },
+    {
+        txHash: registryNodeUtxo.input.txHash,
+        outputIndex: registryNodeUtxo.input.outputIndex,
+        label: "registryNode",
+    },
+];
+const allReferenceInputs = [
+    ...txReadOnlyRefs,
+    {
+        txHash: authenScriptTxHash,
+        outputIndex: authenScriptTxIndex,
+        label: "authenMintRef",
+    },
+].sort((a, b) => {
+    const cmp = a.txHash.toLowerCase().localeCompare(b.txHash.toLowerCase());
+    return cmp !== 0 ? cmp : a.outputIndex - b.outputIndex;
+});
+const registryIndex = allReferenceInputs.findIndex((r) => r.txHash === registryNodeUtxo.input.txHash &&
+    r.outputIndex === registryNodeUtxo.input.outputIndex);
+if (registryIndex < 0) {
+    throw new Error("Registry reference index not found");
+}
+const proofIndices = proofs.map((proof) => allReferenceInputs.findIndex((r) => r.txHash === proof.blacklistUtxo.input.txHash &&
+    r.outputIndex === proof.blacklistUtxo.input.outputIndex));
+if (proofIndices.some((idx) => idx < 0)) {
+    throw new Error("Blacklist proof reference index not found");
+}
+const globalRedeemer = conStr0([list([conStr0([integer(registryIndex)])])]);
+const transferRedeemer = list(proofIndices.map((idx) => conStr(0, [integer(idx)])));
+for (const selectedUtxo of selectedUtxos) {
+    txBuilder
+        .spendingPlutusScriptV3()
+        .txIn(selectedUtxo.input.txHash, selectedUtxo.input.outputIndex, selectedUtxo.output.amount, selectedUtxo.output.address)
+        .txInScript(baseCbor)
+        .txInInlineDatumPresent()
+        .txInRedeemerValue(conStr0([]), "JSON");
+}
+for (const ref of txReadOnlyRefs) {
+    txBuilder.readOnlyTxInReference(ref.txHash, ref.outputIndex);
+}
 const unsignedTx = await txBuilder
-    // consume last factory UTxO
     .spendingPlutusScriptV3()
     .txIn(factoryInput.input.txHash, factoryInput.input.outputIndex, factoryInput.output.amount, factoryInput.output.address)
     .txInScript(factoryValidatorScript)
-    // .spendingTxInReference(factoryScriptTxHash, factoryScriptTxIndex)
     .spendingReferenceTxInInlineDatumPresent()
     .spendingReferenceTxInRedeemerValue(factoryRedeemer)
-    // spend myTokenOneCip113Utxo input
-    .spendingPlutusScriptV3()
-    .txIn(usdcCip113Utxo.input.txHash, usdcCip113Utxo.input.outputIndex, usdcCip113Utxo.output.amount, usdcCip113Utxo.output.address)
-    .txInScript(cip113ValidatorScript)
-    .spendingReferenceTxInInlineDatumPresent()
-    .spendingReferenceTxInRedeemerValue("")
-    // execute withdraw 0 on cip113 contract
     .withdrawalPlutusScriptV3()
-    .withdrawal(cip113RewardAddress, "0")
-    .withdrawalScript(cip113ValidatorScript)
-    .withdrawalRedeemerValue("")
-    // mint pool factory NFT
+    .withdrawal(globalRewardAddr, "0")
+    .withdrawalScript(globalCbor)
+    .withdrawalRedeemerValue(globalRedeemer, "JSON")
+    .withdrawalPlutusScriptV3()
+    .withdrawal(transferLogicRewardAddr, "0")
+    .withdrawalScript(transferLogicCbor)
+    .withdrawalRedeemerValue(transferRedeemer, "JSON")
     .mintPlutusScriptV3()
     .mint("1", authenPolicyId, factoryAssetName)
-    // .mintingScript(authenValidatorScript)
     .mintTxInReference(authenScriptTxHash, authenScriptTxIndex)
     .mintRedeemerValue(mConStr1([]))
-    // mint pool NFT
     .mintPlutusScriptV3()
     .mint("1", authenPolicyId, poolAuthAssetName)
-    // .mintingScript(authenValidatorScript)
     .mintTxInReference(authenScriptTxHash, authenScriptTxIndex)
     .mintRedeemerValue(mConStr1([]))
-    // mint lp tokens
     .mintPlutusScriptV3()
-    .mint(String(maxInt64), authenPolicyId, usdcAdaLpAssetName)
-    // .mintingScript(authenValidatorScript)
+    .mint(String(maxInt64), authenPolicyId, sTokenAdaLpAssetName)
     .mintTxInReference(authenScriptTxHash, authenScriptTxIndex)
     .mintRedeemerValue(mConStr1([]))
-    // previous element of factory linked list
     .txOut(factoryAddress, [{ unit: factoryNftUnit, quantity: "1" }])
     .txOutInlineDatumValue(factoryDatum1)
-    // next element of factory linked list
     .txOut(factoryAddress, [{ unit: factoryNftUnit, quantity: "1" }])
     .txOutInlineDatumValue(factoryDatum2)
-    // Return myTokenOneCip113 back to cip 113 addr
-    .txOut(usdcCip113Utxo.output.address, [
-    { unit: usdcUnit, quantity: String(usdcCip113Balance - usdcSupply) },
-])
-    // pool validator output
     .txOut(poolValidatorAddress, [
-    // add min_ada to ada supply
     { unit: "lovelace", quantity: String(AdaTokenSupply + 4500000) },
-    { unit: usdcUnit, quantity: String(usdcSupply) },
+    { unit: sTokenUnit, quantity: String(sTokenSupply) },
     {
-        unit: authenPolicyId + usdcAdaLpAssetName,
+        unit: authenPolicyId + sTokenAdaLpAssetName,
         quantity: String(AdaRemainingLiquidity),
     },
     { unit: authenPolicyId + poolAuthAssetName, quantity: "1" },
 ])
-    .txOutInlineDatumValue(poolDatum)
+    .txOutInlineDatumValue(poolDatum);
+if (changeAmount > 0n) {
+    unsignedTx
+        .txOut(wallet1SmartAddr, [
+        { unit: "lovelace", quantity: "2000000" },
+        { unit: sTokenUnit, quantity: changeAmount.toString() },
+    ])
+        .txOutInlineDatumValue(conStr0([]), "JSON");
+}
+unsignedTx
     .txInCollateral(wallet1Collateral.input.txHash, wallet1Collateral.input.outputIndex, wallet1Collateral.output.amount, wallet1Collateral.output.address)
+    .requiredSignerHash(wallet1VK)
     .changeAddress(wallet1Address)
-    .selectUtxosFrom(wallet1Utxos)
-    .complete();
-const signedTx = await wallet1.signTx(unsignedTx);
+    .selectUtxosFrom(wallet1Utxos);
+const completedTx = await unsignedTx.complete();
+const signedTx = await wallet1.signTx(completedTx);
 const txHash = await wallet1.submitTx(signedTx);
 console.log("Create cip113 pool tx hash:", txHash);

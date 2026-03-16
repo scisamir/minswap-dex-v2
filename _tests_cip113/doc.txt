@@ -15,6 +15,25 @@
 
 
 
+------------------------New Cip113--------------------------------------
+Dex initialization tx hash: 5736497ec0a875b7134ab38a7dbe9ecca689e6099f6dc07fd230019e4ef9042a
+Create cip113 pool tx hash: 2f3a422afc5ff708ba7e17eacde7f62f989172060fcbc90df4571427259060be
+
+Create buy order tx hash: 6de085bb4b74e3de494f105001f81117466ee445c3e39cf86a34d1d8069d24fd
+Cancel order by owner tx hash: 1a04d07679e49cde8b7392962ce0b08b8707b10a42a90edbc9972f3ff4f8b9b3
+
+Create sell order tx hash: 728725b791679e9c64735276682f1b42433b3132fbdc04d6d81a57058f71cefe
+Cancel order by owner tx hash: f0028ba0718e4d0e11fd5b5606b91e9de98c21f50539acd8065791136c769b52
+
+Create buy order tx hash: 5b23d0a6e1eb0ae5cba16b82ff24a9faed7c111647de8d0e51c1ceb741ccf8d7
+pool batching tx hash: 922bd38878eec979eb1a5f0be630ad5886a326812deade5003d2ac732565131f
+
+Create sell order tx hash: 887bd50005678289c1d7f03c5035e0d57396832523992e9f89e1238143474bfd
+pool batching tx hash: 318ecef017e41f4d34dac9e8f7254d685ac83a3f9974c847d6aeea9ce77f2f55
+
+
+
+
 
 (Mainnet)
 Dex initialization:

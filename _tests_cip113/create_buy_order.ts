@@ -18,8 +18,8 @@ import {
   wallet1SK,
   wallet1Utxos,
   wallet1VK,
-  cip113ValidatorHash,
-  usdcAdaLpAssetName,
+  baseHash,
+  sTokenAdaLpAssetName,
 } from "./setup.js";
 
 const orderStep = mConStr0([
@@ -31,21 +31,21 @@ const orderStep = mConStr0([
 const orderDatum = mConStr0([
   mConStr0([wallet1VK]),
   // user address has to be smart address (cip 113 address)
-  mScriptAddress(cip113ValidatorHash, wallet1VK),
+  mScriptAddress(baseHash, wallet1VK),
   mConStr0([]),
   // user address has to be smart address (cip 113 address)
-  mScriptAddress(cip113ValidatorHash, wallet1VK),
+  mScriptAddress(baseHash, wallet1VK),
   mConStr0([]),
   mConStr0([
     authenPolicyId, // policy id
-    usdcAdaLpAssetName, // asset name
+    sTokenAdaLpAssetName, // asset name
   ]), // changes according to the related liquidity pool
   orderStep,
   6000000, // max_batcher_fee: 6 ADA
   mConStr1([]), // mConStr0([[(Date.now() + (10 * 60 * 1000)), 0]]), // 10 mins exp time; tip 0
 ]);
 
-console.log("usdcAdaLpAssetName:", usdcAdaLpAssetName);
+console.log("sTokenAdaLpAssetName:", sTokenAdaLpAssetName);
 
 const unsignedTx = await txBuilder
   .txOut(orderValidatorAddress, [
