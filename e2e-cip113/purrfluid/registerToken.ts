@@ -1,0 +1,429 @@
+/**
+ * registerToken.ts — Step 3
+ *
+ * Registers the issuance_mint policy in the on-chain CIP-113 token registry.
+ *
+ * Key changes from previous version (aligned with reference FluidMesh.registerInRegistry):
+ *
+ *  1. Uses issuer_admin_contract (adminContract) for minting authorization,
+ *     NOT freeze_and_seize_transfer (transferLogic).
+ *  2. Fetches registry_mint and registry_spend CBOR from Blockfrost API
+ *     instead of computing locally from blueprint (avoids CBOR mismatch).
+ *  3. Finds registry_spend address from on-chain head node UTxO.
+ *  4. New node datum: third_party_transfer_logic = adminContractHash.
+ *  5. IssuanceCborHex datum decoded with proper CBOR bytestring handling.
+ *
+ * Prerequisites:
+ *   - BLACKLIST_MINT_HASH filled in config.ts (Step 1)
+ *   - TOKEN_POLICY_ID filled in config.ts (Step 2)
+ */
+
+import {
+  MeshTxBuilder,
+  deserializeDatum,
+  applyParamsToScript,
+  stringToHex,
+  byteString,
+  conStr0,
+  conStr1,
+  integer,
+} from "@meshsdk/core";
+
+import {
+  blockchainProvider,
+  wallet1,
+  wallet1VK,
+  wallet1Collateral,
+} from "../setup.js";
+
+import {
+  BLACKLIST_MINT_HASH,
+  TOKEN_POLICY_ID,
+  TOKEN_ASSET_NAME,
+  TOKEN_SUPPLY,
+  registryMintPolicyId,
+  issuanceScriptHash,
+  issuanceCbor,
+  issuancePolicyId,
+  transferLogicHash,
+  adminContractCbor,
+  adminContractHash,
+  adminContractRewardAddr,
+  wallet1SmartAddr,
+  NETWORK_ID,
+  protocolParamsPolicyId,
+  getValidator,
+  validateConfig,
+} from "./config.js";
+
+validateConfig();
+
+if (!BLACKLIST_MINT_HASH)
+  throw new Error("BLACKLIST_MINT_HASH is empty — run Step 1 first");
+if (!TOKEN_POLICY_ID)
+  throw new Error("TOKEN_POLICY_ID is empty — run Step 2 first");
+
+console.log("=== Step 3: Register Token ===");
+console.log("TOKEN_POLICY_ID:      ", TOKEN_POLICY_ID);
+console.log("issuancePolicyId:     ", issuancePolicyId);
+console.log("adminContractHash:    ", adminContractHash);
+console.log("registryMintPolicyId: ", registryMintPolicyId);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. Find registry_spend address from on-chain head node
+//    The head node holds a token with just registryMintPolicyId (empty asset name).
+//    Its address IS the registry_spend address.
+// ─────────────────────────────────────────────────────────────────────────────
+
+console.log("\nFinding registry head node...");
+const headNodeAddresses = await blockchainProvider.fetchAssetAddresses(
+  registryMintPolicyId
+);
+if (!headNodeAddresses?.length)
+  throw new Error("Registry head node not found — check registryMintPolicyId");
+
+const registrySpendAddr = headNodeAddresses[0].address;
+console.log("Registry spend address:", registrySpendAddr);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. Fetch IssuanceCborHex UTxO (reference input for registry_mint)
+// ─────────────────────────────────────────────────────────────────────────────
+
+console.log("\nFetching IssuanceCborHex UTxO...");
+const issuanceCborHexTokenName = Buffer.from("IssuanceCborHex").toString("hex");
+const issuanceCborHexUnit = issuanceScriptHash + issuanceCborHexTokenName;
+const issuanceCborHexAddresses =
+  await blockchainProvider.fetchAssetAddresses(issuanceCborHexUnit);
+if (!issuanceCborHexAddresses?.length)
+  throw new Error(
+    `IssuanceCborHex asset not found on chain. Unit: ${issuanceCborHexUnit}`
+  );
+
+const issuanceCborHexUtxos = await blockchainProvider.fetchAddressUTxOs(
+  issuanceCborHexAddresses[0].address
+);
+const issuanceCborHexUtxo = issuanceCborHexUtxos.find((u) =>
+  u.output.amount.some((a) => a.unit === issuanceCborHexUnit)
+);
+if (!issuanceCborHexUtxo) throw new Error("IssuanceCborHex UTxO not found");
+console.log(
+  `IssuanceCborHex UTxO: ${issuanceCborHexUtxo.input.txHash}#${issuanceCborHexUtxo.input.outputIndex}`
+);
+
+
+console.log("\nFetching ProtocolParams UTxO...");
+const protocolParamsUnit = protocolParamsPolicyId + stringToHex("ProtocolParams");
+const protocolParamsAddresses = await blockchainProvider.fetchAssetAddresses(
+  protocolParamsUnit
+);
+if (!protocolParamsAddresses?.length)
+  throw new Error(
+    `ProtocolParams asset not found on chain. Unit: ${protocolParamsUnit}`
+  );
+
+const protocolParamsUtxos = await blockchainProvider.fetchAddressUTxOs(
+  protocolParamsAddresses[0].address
+);
+const protocolParamsUtxo = protocolParamsUtxos.find((u) =>
+  u.output.amount.some((a) => a.unit === protocolParamsUnit)
+);
+if (!protocolParamsUtxo) throw new Error("ProtocolParams UTxO not found");
+console.log(
+  `ProtocolParams UTxO: ${protocolParamsUtxo.input.txHash}#${protocolParamsUtxo.input.outputIndex}`
+);
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. Extract hashed_param from issuance_mint flat UPLC bytes
+// ─────────────────────────────────────────────────────────────────────────────
+
+if (!issuanceCborHexUtxo.output.plutusData)
+  throw new Error("IssuanceCborHex UTxO has no inline datum");
+
+const issuanceDatum = deserializeDatum(issuanceCborHexUtxo.output.plutusData);
+const prefixHex = issuanceDatum?.fields?.[0]?.bytes as string;
+const postfixHex = issuanceDatum?.fields?.[1]?.bytes as string;
+if ((!prefixHex && prefixHex !== "") || (!postfixHex && postfixHex !== ""))
+  throw new Error("Failed to decode IssuanceCborHex datum fields");
+
+// Strip CBOR bytestring header from issuanceCbor to get raw flat bytes
+function stripCborBytestringHeader(hex: string): string {
+  const first = parseInt(hex.slice(0, 2), 16);
+  if (first === 0x58) return hex.slice(4); // 1-byte length
+  if (first === 0x59) return hex.slice(6); // 2-byte length
+  if (first === 0x5a) return hex.slice(10); // 4-byte length
+  if (first >= 0x40 && first <= 0x57) return hex.slice(2); // short direct
+  throw new Error(`Unexpected CBOR byte: 0x${first.toString(16)}`);
+}
+
+const flatBytes = stripCborBytestringHeader(issuanceCbor);
+const hashedParam = flatBytes.slice(
+  prefixHex.length,
+  flatBytes.length - postfixHex.length
+);
+
+console.log("hashed_param extracted:", hashedParam.slice(0, 20) + "...");
+console.log("   prefix len:", prefixHex.length / 2, "bytes");
+console.log("   postfix len:", postfixHex.length / 2, "bytes");
+console.log("   hashed_param len:", hashedParam.length / 2, "bytes");
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. Fetch registry_spend CBOR from Blockfrost
+//    (avoids blueprint CBOR mismatch with on-chain deployment)
+// ─────────────────────────────────────────────────────────────────────────────
+
+console.log("\nFetching registry scripts from chain...");
+
+const registrySpendCbor = applyParamsToScript(
+  getValidator("registry_spend.registry_spend.spend"),
+  [byteString(protocolParamsPolicyId)],
+  "JSON"
+);
+console.log("registry_spend CBOR computed locally");
+
+// Also use locally computed registry_mint CBOR (from config)
+// The config already computes registryMintCbor with the correct params
+const { registryMintCbor } = await import("./config.js");
+console.log("registry_mint CBOR from config");
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. Find covering registry node: node.key < TOKEN_POLICY_ID < node.next
+// ─────────────────────────────────────────────────────────────────────────────
+
+console.log("\nSearching registry for covering node...");
+const registryUtxos =
+  await blockchainProvider.fetchAddressUTxOs(registrySpendAddr);
+console.log(`Found ${registryUtxos.length} registry UTxO(s)`);
+
+type RegistryNode = {
+  key: string;
+  next: string;
+  transferLogicConstructor: number;
+  transferLogicHash: string;
+  thirdPartyTransferLogicConstructor: number;
+  thirdPartyTransferLogicHash: string;
+  globalStateCs: string;
+  lovelace: string;
+  tokenUnit: string;
+};
+
+type ParsedRegistryNode = {
+  utxo: (typeof registryUtxos)[0];
+  node: RegistryNode;
+};
+
+const parsedNodes: ParsedRegistryNode[] = [];
+for (const utxo of registryUtxos) {
+  if (!utxo.output.plutusData) continue;
+  try {
+    const datum = deserializeDatum(utxo.output.plutusData);
+    const key = datum?.fields?.[0]?.bytes ?? "";
+    const next = datum?.fields?.[1]?.bytes ?? "";
+    const lovelace =
+      utxo.output.amount.find((a) => a.unit === "lovelace")?.quantity ??
+      "2000000";
+    const tokenUnit = registryMintPolicyId + key;
+    const tlField = datum?.fields?.[2];
+    const tptlField = datum?.fields?.[3];
+    const gscField = datum?.fields?.[4];
+
+    parsedNodes.push({
+      utxo,
+      node: {
+        key,
+        next,
+        transferLogicConstructor: tlField?.constructor ?? 1,
+        transferLogicHash: tlField?.fields?.[0]?.bytes ?? "",
+        thirdPartyTransferLogicConstructor: tptlField?.constructor ?? 1,
+        thirdPartyTransferLogicHash: tptlField?.fields?.[0]?.bytes ?? "",
+        globalStateCs: gscField?.bytes ?? "",
+        lovelace,
+        tokenUnit,
+      },
+    });
+  } catch {
+    continue;
+  }
+}
+
+// Already registered? (must be checked BEFORE looking for a covering range)
+const existing = parsedNodes.find((n) => n.node.key === TOKEN_POLICY_ID);
+if (existing) {
+  throw new Error(
+    `Token ${TOKEN_POLICY_ID} is already registered at ${existing.utxo.input.txHash}#${existing.utxo.input.outputIndex}`
+  );
+}
+
+let coveringUtxo: (typeof registryUtxos)[0] | null = null;
+let coveringNode: RegistryNode | null = null;
+
+for (const { utxo, node } of parsedNodes) {
+  if (node.key < TOKEN_POLICY_ID && TOKEN_POLICY_ID < node.next) {
+    coveringUtxo = utxo;
+    coveringNode = node;
+    console.log(`Covering node: ${utxo.input.txHash}#${utxo.input.outputIndex}`);
+    console.log(`   key:  "${node.key || "(origin)"}"`);
+    console.log(`   next: "${node.next}"`);
+    break;
+  }
+}
+
+if (!coveringUtxo || !coveringNode) {
+  const less = parsedNodes
+    .map((n) => n.node.key)
+    .filter((k) => k < TOKEN_POLICY_ID)
+    .sort()
+    .at(-1);
+  const greater = parsedNodes
+    .map((n) => n.node.key)
+    .filter((k) => k > TOKEN_POLICY_ID)
+    .sort()
+    .at(0);
+  throw new Error(
+    `No covering node found for policy: ${TOKEN_POLICY_ID}. Registry may be malformed. nearestLess=${less ?? "none"}, nearestGreater=${greater ?? "none"}`
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. Build datums
+//
+// Updated covering node: preserve all fields, next → TOKEN_POLICY_ID
+// New inserted node:
+//   transfer_logic_script             = Script(transferLogicHash)
+//   third_party_transfer_logic_script = Script(adminContractHash) ← reference pattern
+//   global_state_cs                   = byteString("") — empty
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Rebuild covering node's credential fields exactly as they were
+const coveringTlCred =
+  coveringNode.transferLogicConstructor === 0
+    ? conStr0([byteString(coveringNode.transferLogicHash)])
+    : conStr1([byteString(coveringNode.transferLogicHash)]);
+const coveringTptlCred =
+  coveringNode.thirdPartyTransferLogicConstructor === 0
+    ? conStr0([byteString(coveringNode.thirdPartyTransferLogicHash)])
+    : conStr1([byteString(coveringNode.thirdPartyTransferLogicHash)]);
+
+const updatedCoveringDatum = conStr0([
+  byteString(coveringNode.key),
+  byteString(TOKEN_POLICY_ID), // next → new node
+  coveringTlCred,
+  coveringTptlCred,
+  byteString(coveringNode.globalStateCs),
+]);
+
+const newNodeDatum = conStr0([
+  byteString(TOKEN_POLICY_ID),
+  byteString(coveringNode.next),
+  conStr1([byteString(transferLogicHash)]),       // transfer_logic = Script(transferLogicHash)
+  conStr1([byteString(adminContractHash)]),        // third_party_transfer_logic = Script(adminContractHash)
+  byteString(""),                                  // global_state_cs = empty
+]);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 7. Build transaction
+// ─────────────────────────────────────────────────────────────────────────────
+
+const walletUtxos = await wallet1.getUtxos();
+const walletAddress = await wallet1.getChangeAddress();
+
+const txBuilder = new MeshTxBuilder({
+  fetcher: blockchainProvider,
+  evaluator: blockchainProvider,
+  submitter: blockchainProvider,
+  verbose: true,
+});
+
+// Spend the covering registry node
+txBuilder
+  .spendingPlutusScriptV3()
+  .txIn(coveringUtxo.input.txHash, coveringUtxo.input.outputIndex)
+  .txInInlineDatumPresent()
+  .txInScript(registrySpendCbor)
+  .txInRedeemerValue(conStr0([]), "JSON");
+
+// Reference inputs
+txBuilder
+  .readOnlyTxInReference(
+    protocolParamsUtxo.input.txHash,
+    protocolParamsUtxo.input.outputIndex
+  )
+  .readOnlyTxInReference(
+    issuanceCborHexUtxo.input.txHash,
+    issuanceCborHexUtxo.input.outputIndex
+  );
+
+// OUTPUT 0: issuance tokens to smart wallet (issuance_mint checks outputs[0])
+txBuilder
+  .txOut(wallet1SmartAddr, [
+    { unit: "lovelace", quantity: "2000000" },
+    {
+      unit: issuancePolicyId + TOKEN_ASSET_NAME,
+      quantity: String(TOKEN_SUPPLY),
+    },
+  ])
+  .txOutInlineDatumValue(conStr0([]), "JSON");
+
+// OUTPUT 1: updated covering node (next → TOKEN_POLICY_ID)
+txBuilder
+  .txOut(registrySpendAddr, [
+    { unit: "lovelace", quantity: coveringNode.lovelace },
+    { unit: coveringNode.tokenUnit, quantity: "1" },
+  ])
+  .txOutInlineDatumValue(updatedCoveringDatum, "JSON");
+
+// OUTPUT 2: new inserted registry node
+txBuilder
+  .txOut(registrySpendAddr, [
+    { unit: "lovelace", quantity: "2000000" },
+    { unit: registryMintPolicyId + TOKEN_POLICY_ID, quantity: "1" },
+  ])
+  .txOutInlineDatumValue(newNodeDatum, "JSON");
+
+// Mint 1: registry node NFT
+txBuilder
+  .mintPlutusScriptV3()
+  .mint("1", registryMintPolicyId, TOKEN_POLICY_ID)
+  .mintingScript(registryMintCbor)
+  .mintRedeemerValue(
+    conStr1([byteString(TOKEN_POLICY_ID), byteString(hashedParam)]),
+    "JSON"
+  );
+
+// Mint 2: issuance tokens (required by is_programmable_token_registration in registry_mint)
+txBuilder
+  .mintPlutusScriptV3()
+  .mint(String(TOKEN_SUPPLY), issuancePolicyId, TOKEN_ASSET_NAME)
+  .mintingScript(issuanceCbor)
+  .mintRedeemerValue(
+    conStr0([conStr1([byteString(adminContractHash)])]),
+    "JSON"
+  );
+
+// Withdrawal: issuer_admin_contract (authorizes issuance_mint)
+txBuilder
+  .withdrawalPlutusScriptV3()
+  .withdrawal(adminContractRewardAddr, "0")
+  .withdrawalScript(adminContractCbor)
+  .withdrawalRedeemerValue(integer(0), "JSON");
+
+await txBuilder
+  .txInCollateral(
+    wallet1Collateral.input.txHash,
+    wallet1Collateral.input.outputIndex
+  )
+  .selectUtxosFrom(walletUtxos)
+  .changeAddress(walletAddress)
+  .requiredSignerHash(wallet1VK)
+  .setNetwork(NETWORK_ID === 0 ? "preview" : "mainnet")
+  .complete();
+
+const signedTx = await wallet1.signTx(txBuilder.txHex, true);
+const txHash = await wallet1.submitTx(signedTx);
+
+console.log("\n================================");
+console.log("Token registered!");
+console.log("================================");
+console.log("TX Hash:           ", txHash);
+console.log("TOKEN_POLICY_ID:   ", TOKEN_POLICY_ID);
+console.log("transferLogicHash: ", transferLogicHash);
+console.log("adminContractHash: ", adminContractHash);
+console.log("\nStep 3 complete — run spend.ts next");
