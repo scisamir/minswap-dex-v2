@@ -1,22 +1,23 @@
 use aiken/collection/dict
 use aiken/collection/list
 use aiken/primitive/bytearray
-use cardano/address.{Address, Credential, Script, VerificationKey}
+use cardano/address.{Credential, Script}
 use cardano/assets.{PolicyId}
-use cardano/transaction.{Output, OutputReference, Transaction}
-use purrfluid/purrfluid_types.{
+use cardano/transaction.{OutputReference, Transaction}
+use types.{
   WhitelistInit, WhitelistInsert, WhitelistNode, WhitelistRedeemer,
   WhitelistRemove, origin_key, sentinel_next_key,
 }
-use utils.{bytearray_lt, expect_inline_datum, has_currency_symbol}
+use utils.{
+  bytearray_lt, expect_inline_datum, has_currency_symbol, tx_signed,
+  validate_whitelist_node,
+}
 
 validator purrfluid_whitelist(
   seed_ref: OutputReference,
   manager_cred: Credential,
 ) {
   mint(redeemer: WhitelistRedeemer, policy_id: PolicyId, self: Transaction) {
-    let whitelist_address = Address(Script(policy_id), None)
-
     when redeemer is {
       WhitelistInit -> {
         expect
@@ -25,14 +26,15 @@ validator purrfluid_whitelist(
             fn(input) { input.output_reference == seed_ref },
           )
 
+        expect tx_signed(manager_cred, self)
+
         expect [node_output] =
           list.filter(
             self.outputs,
             fn(output) { has_currency_symbol(output.value, policy_id) },
           )
 
-        let node =
-          validate_node_output(node_output, policy_id, whitelist_address)
+        let node = validate_whitelist_node(node_output, policy_id)
 
         and {
           (validate_single_mint(self.mint, policy_id) == origin_key)?,
@@ -44,7 +46,7 @@ validator purrfluid_whitelist(
       WhitelistInsert { key } -> {
         expect bytearray.length(key) == 28
 
-        expect manager_signs_tx(manager_cred, self)
+        expect tx_signed(manager_cred, self)
 
         expect [covering_input] =
           list.filter(
@@ -65,8 +67,8 @@ validator purrfluid_whitelist(
             fn(output) { has_currency_symbol(output.value, policy_id) },
           )
 
-        let node1 = validate_node_output(out1, policy_id, whitelist_address)
-        let node2 = validate_node_output(out2, policy_id, whitelist_address)
+        let node1 = validate_whitelist_node(out1, policy_id)
+        let node2 = validate_whitelist_node(out2, policy_id)
 
         let updated_ok =
           node1.key == covering_node.key && node1.next == key && node2.key == key && node2.next == covering_node.next
@@ -83,7 +85,7 @@ validator purrfluid_whitelist(
       WhitelistRemove { key } -> {
         expect bytearray.length(key) == 28
 
-        expect manager_signs_tx(manager_cred, self)
+        expect tx_signed(manager_cred, self)
 
         expect [input1,
           input2] =
@@ -101,8 +103,7 @@ validator purrfluid_whitelist(
             fn(output) { has_currency_symbol(output.value, policy_id) },
           )
 
-        let output_node =
-          validate_node_output(out, policy_id, whitelist_address)
+        let output_node = validate_whitelist_node(out, policy_id)
 
         let remove_first =
           node1.key == key && node2.next == key && output_node.key == node2.key && output_node.next == node1.next
@@ -137,27 +138,6 @@ validator purrfluid_whitelist(
   }
 }
 
-fn validate_node_output(
-  output: Output,
-  whitelist_policy: PolicyId,
-  whitelist_address: Address,
-) -> WhitelistNode {
-  expect output.address == whitelist_address
-  expect None = output.reference_script
-
-  expect [Pair(actual_policy, node_tokens)] =
-    assets.to_dict(output.value) |> dict.expect_tail() |> dict.to_pairs()
-  expect actual_policy == whitelist_policy
-  expect [Pair(token_name, 1)] = dict.to_pairs(node_tokens)
-
-  expect node: WhitelistNode = expect_inline_datum(output)
-
-  expect token_name == node.key
-  expect bytearray_lt(node.key, node.next)
-
-  node
-}
-
 fn validate_single_mint(mint: assets.Value, policy_id: PolicyId) -> ByteArray {
   expect [Pair(asset_name, 1)] =
     assets.tokens(mint, policy_id) |> dict.to_pairs()
@@ -172,18 +152,4 @@ fn validate_single_burn(
   expect [Pair(asset_name, -1)] =
     assets.tokens(mint, policy_id) |> dict.to_pairs()
   asset_name == key
-}
-
-fn manager_signs_tx(manager_cred: Credential, self: Transaction) {
-  when manager_cred is {
-    VerificationKey(manager_pkh) ->
-      list.any(self.extra_signatories, fn(sig) { sig == manager_pkh })
-    Script(manager_hash) ->
-      list.any(
-        self.inputs,
-        fn(inp) {
-          inp.output.address.payment_credential == Script(manager_hash)
-        },
-      )
-  }
 }

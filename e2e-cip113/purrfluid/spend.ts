@@ -1,10 +1,10 @@
 /**
- * spend.ts — Step 4
+ * spend.ts — Step 3
  *
- * Transfers sTokens from wallet1's smart wallet to a recipient's smart wallet.
- * Attaches non-membership proofs from the blacklist as reference inputs.
+ * Transfers PurrFluid tokens from wallet1's smart wallet to a recipient's smart wallet.
+ * Attaches whitelist membership proofs as reference inputs.
  *
- * Prerequisites: Steps 1–3 complete, TOKEN_POLICY_ID filled in config.ts
+ * Prerequisites: Step 1, Step 1a, Step 1b, and Step 2 complete
  */
 
 import {
@@ -27,14 +27,14 @@ import {
 } from "../setup.js";
 
 import {
-  BLACKLIST_MINT_HASH,
   TOKEN_POLICY_ID,
   TOKEN_ASSET_NAME,
   globalRewardAddr,
   baseCbor,
   wallet1SmartAddr,
   getSmartAddr,
-  blacklistSpendAddr,
+  whitelistPolicyId,
+  whitelistSpendAddr,
   transferLogicCbor,
   transferLogicHash,
   transferLogicRewardAddr,
@@ -46,11 +46,6 @@ import {
 } from "./config.js";
 
 validateConfig();
-
-if (!BLACKLIST_MINT_HASH)
-  throw new Error("BLACKLIST_MINT_HASH is empty — run Steps 1–3 first");
-if (!TOKEN_POLICY_ID)
-  throw new Error("TOKEN_POLICY_ID is empty — run Steps 1–3 first");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIG — change RECIPIENT_STAKE_KEY to send to another wallet
@@ -68,12 +63,11 @@ const globalCbor = applyParamsToScript(
   "JSON"
 );
 
-console.log("=== Step 4: Transfer sTokens ===");
+console.log("=== Step 3: Transfer PurrFluid Tokens ===");
 console.log("transferLogicRewardAddr:", transferLogicRewardAddr);
 console.log("senderSmartAddr:        ", senderSmartAddr);
 console.log("recipientSmartAddr:     ", recipientSmartAddr);
-console.log("blacklistSpendAddr:     ", blacklistSpendAddr);
-
+console.log("whitelistSpendAddr:     ", whitelistSpendAddr);
 // ─────────────────────────────────────────────────────────────────────────────
 // Find registry node for this token
 // ─────────────────────────────────────────────────────────────────────────────
@@ -115,7 +109,7 @@ console.log("Local transfer hash:      ", transferLogicHash);
 if (registryTransferHash && registryTransferHash !== transferLogicHash) {
   throw new Error(
     `Config mismatch: registry transfer hash is ${registryTransferHash}, but local transferLogicHash is ${transferLogicHash}. ` +
-      `Use the same BLACKLIST_MINT_HASH that was active when this token was registered, or re-register a fresh token entry with the new transfer logic.`
+      `Use the same whitelist policy that was active when this token was registered, or re-register a fresh token entry with the new transfer logic.`
   );
 }
 
@@ -170,68 +164,64 @@ console.log(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Find blacklist non-membership proofs for sender
+// Find whitelist membership proofs for all programmable inputs and outputs
 // ─────────────────────────────────────────────────────────────────────────────
 
-console.log("\n=== Blacklist Proofs ===");
-const blacklistUtxos =
-  await blockchainProvider.fetchAddressUTxOs(blacklistSpendAddr);
-console.log(`Found ${blacklistUtxos.length} blacklist node(s)`);
+console.log("\n=== Whitelist Proofs ===");
+const whitelistUtxos =
+  await blockchainProvider.fetchAddressUTxOs(whitelistSpendAddr);
+console.log(`Found ${whitelistUtxos.length} whitelist node(s)`);
 
-// Sender identity in programmable_logic_global comes from the smart-wallet stake credential.
-const senderProofKeyHash = wallet1VK;
+const proofKeys = [
+  ...selectedUtxos.map(() => wallet1VK),
+  RECIPIENT_STAKE_KEY,
+  ...(changeAmount > BigInt(0) ? [wallet1VK] : []),
+];
 
 type ProofEntry = {
-  spendUtxo: (typeof selectedUtxos)[0];
-  blacklistUtxo: (typeof blacklistUtxos)[0];
+  key: string;
+  whitelistUtxo: (typeof whitelistUtxos)[0];
 };
 
 const proofs: ProofEntry[] = [];
 
-for (const spendUtxo of selectedUtxos) {
-  const coveringNode = blacklistUtxos.find((blUtxo) => {
-    if (!blUtxo.output.plutusData) return false;
+for (const keyHash of proofKeys) {
+  const membershipNode = whitelistUtxos.find((wlUtxo) => {
+    if (!wlUtxo.output.plutusData) return false;
     try {
-      const hasBlacklistPolicy = blUtxo.output.amount.some(
-        (a) => a.unit !== "lovelace" && a.unit.startsWith(BLACKLIST_MINT_HASH)
+      const hasWhitelistToken = wlUtxo.output.amount.some(
+        (a) => a.unit === whitelistPolicyId + keyHash && a.quantity === "1"
       );
-      if (!hasBlacklistPolicy) return false;
+      if (!hasWhitelistToken) return false;
 
-      const datum = deserializeDatum(blUtxo.output.plutusData);
+      const datum = deserializeDatum(wlUtxo.output.plutusData);
       const key = datum?.fields?.[0]?.bytes ?? "";
-      const next = datum?.fields?.[1]?.bytes ?? "";
-      return key < senderProofKeyHash && senderProofKeyHash < next;
+      return key === keyHash;
     } catch {
       return false;
     }
   });
 
-  if (!coveringNode)
+  if (!membershipNode)
     throw new Error(
-      `No blacklist covering node for key hash: ${senderProofKeyHash}\n` +
-        `blacklistSpendAddr: ${blacklistSpendAddr}`
+      `No whitelist membership node for key hash: ${keyHash}\n` +
+        `whitelistSpendAddr: ${whitelistSpendAddr}`
     );
 
-  proofs.push({ spendUtxo, blacklistUtxo: coveringNode });
-  const selectedDatum = deserializeDatum(coveringNode.output.plutusData!);
-  const selectedKey = selectedDatum?.fields?.[0]?.bytes ?? "";
-  const selectedNext = selectedDatum?.fields?.[1]?.bytes ?? "";
+  proofs.push({ key: keyHash, whitelistUtxo: membershipNode });
   console.log(
-    `✅ Proof node: ${coveringNode.input.txHash.slice(0, 8)}...#${coveringNode.input.outputIndex}`
-  );
-  console.log(
-    `   range: "${selectedKey || "(origin)"}" < "${senderProofKeyHash}" < "${selectedNext}"`
+    `Proof node for ${keyHash}: ${membershipNode.input.txHash.slice(0, 8)}...#${membershipNode.input.outputIndex}`
   );
 }
 
-// Deduplicate blacklist nodes
-const uniqueBlacklistUtxos: typeof blacklistUtxos = [];
+// Deduplicate whitelist nodes
+const uniqueWhitelistUtxos: typeof whitelistUtxos = [];
 const seen = new Set<string>();
 for (const p of proofs) {
-  const k = `${p.blacklistUtxo.input.txHash}#${p.blacklistUtxo.input.outputIndex}`;
+  const k = `${p.whitelistUtxo.input.txHash}#${p.whitelistUtxo.input.outputIndex}`;
   if (!seen.has(k)) {
     seen.add(k);
-    uniqueBlacklistUtxos.push(p.blacklistUtxo);
+    uniqueWhitelistUtxos.push(p.whitelistUtxo);
   }
 }
 
@@ -242,10 +232,10 @@ for (const p of proofs) {
 type RefEntry = { txHash: string; outputIndex: number; label: string };
 
 const allRefInputs: RefEntry[] = [
-  ...uniqueBlacklistUtxos.map((u) => ({
+  ...uniqueWhitelistUtxos.map((u) => ({
     txHash: u.input.txHash,
     outputIndex: u.input.outputIndex,
-    label: "blacklistNode",
+    label: "whitelistNode",
   })),
   {
     txHash: protocolParamsUtxo.input.txHash,
@@ -277,19 +267,16 @@ const registryIndex = sortedRefs.findIndex(
 const proofIndices = proofs.map((p) =>
   sortedRefs.findIndex(
     (r) =>
-      r.txHash === p.blacklistUtxo.input.txHash &&
-      r.outputIndex === p.blacklistUtxo.input.outputIndex
+      r.txHash === p.whitelistUtxo.input.txHash &&
+      r.outputIndex === p.whitelistUtxo.input.outputIndex
   )
-);
-console.log(
-  `Registry index: ${registryIndex}, Proof indices: [${proofIndices}]`
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Redeemers
-// programmable_logic_base:     conStr0([])
-// programmable_logic_global:   TransferAct { proofs: [RegistryProof(registryIndex)] }
-// freeze_and_seize_transfer:   List<BlacklistProof.NonmembershipProof { node_idx }>
+// programmable_logic_base:   conStr0([])
+// programmable_logic_global: TransferAct { proofs: [RegistryProof(registryIndex)] }
+// purrfluid_transfer:        List<WhitelistProof.WhitelistMembership { node_idx }>
 // ─────────────────────────────────────────────────────────────────────────────
 
 const baseRedeemer = conStr0([]);
@@ -331,7 +318,7 @@ for (const utxo of selectedUtxos) {
     .txInRedeemerValue(baseRedeemer, "JSON");
 }
 
-// Reference inputs (sorted — blacklist proofs, protocol params, registry node)
+// Reference inputs (sorted — whitelist proofs, protocol params, registry node)
 for (const ref of sortedRefs) {
   txBuilder.readOnlyTxInReference(ref.txHash, ref.outputIndex);
 }
@@ -361,7 +348,7 @@ txBuilder
   .withdrawalScript(globalCbor)
   .withdrawalRedeemerValue(globalRedeemer, "JSON");
 
-// freeze_and_seize_transfer withdrawal (inline script)
+// purrfluid_transfer withdrawal (inline script)
 txBuilder
   .withdrawalPlutusScriptV3()
   .withdrawal(transferLogicRewardAddr, "0")
@@ -388,6 +375,6 @@ console.log("\n================================");
 console.log("✅ Transfer complete!");
 console.log("================================");
 console.log("TX Hash:", txHash);
-console.log("Amount: ", SEND_AMOUNT, "sToken");
+console.log("Amount: ", SEND_AMOUNT, "PurrFluid");
 console.log("From:   ", senderSmartAddr);
 console.log("To:     ", recipientSmartAddr);

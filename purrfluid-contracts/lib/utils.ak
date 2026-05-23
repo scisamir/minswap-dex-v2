@@ -1,57 +1,49 @@
+use aiken/builtin.{tail_list}
 use aiken/collection/dict
 use aiken/collection/list
 use cardano/address.{Address, Credential, Inline, Script, VerificationKey}
-use cardano/assets.{PolicyId}
-use cardano/transaction.{Input, Output, Transaction}
-use purrfluid/purrfluid_types.{
-  WhitelistMembership, WhitelistNode, WhitelistProof,
+use cardano/assets.{PolicyId, Value}
+use cardano/transaction.{InlineDatum, Input, Output, Transaction}
+use types.{WhitelistMembership, WhitelistNode, WhitelistProof}
+
+pub fn expect_inline_datum(output: Output) -> Data {
+  expect InlineDatum(d) = output.datum
+  d
 }
-use utils.{bytearray_lt, expect_inline_datum}
 
-validator purrfluid_transfer(
-  programmable_logic_base: Credential,
-  token_policy: PolicyId,
-  whitelist_policy: PolicyId,
-) {
-  withdraw(
-    proofs: List<WhitelistProof>,
-    _account: Credential,
-    self: Transaction,
-  ) {
-    let input_hashes =
-      collect_input_hashes(self.inputs, programmable_logic_base, token_policy)
+pub fn has_currency_symbol(haystack: Value, needle: PolicyId) -> Bool {
+  let haystack = haystack |> assets.to_dict |> dict.to_pairs |> tail_list
+  do_has_currency_symbol(haystack, needle)
+}
 
-    let output_hashes =
-      collect_output_hashes(self.outputs, programmable_logic_base, token_policy)
-
-    let remaining_proofs =
-      check_whitelist(
-        input_hashes,
-        proofs,
-        self.reference_inputs,
-        whitelist_policy,
-      )
-
-    let remaining_proofs =
-      check_whitelist(
-        output_hashes,
-        remaining_proofs,
-        self.reference_inputs,
-        whitelist_policy,
-      )
-
-    when remaining_proofs is {
-      [] -> True
-      _ -> fail
-    }
-  }
-
-  else(_) {
-    fail
+fn do_has_currency_symbol(
+  haystack: List<Pair<PolicyId, a>>,
+  needle: PolicyId,
+) -> Bool {
+  when haystack is {
+    [] -> False
+    [Pair(head, _), ..tail] ->
+      head == needle || do_has_currency_symbol(tail, needle)
   }
 }
 
-fn collect_input_hashes(
+pub fn bytearray_lt(a: ByteArray, b: ByteArray) -> Bool {
+  builtin.less_than_bytearray(a, b)
+}
+
+pub fn tx_signed(cred: Credential, self: Transaction) {
+  when cred is {
+    VerificationKey(pkh) ->
+      list.any(self.extra_signatories, fn(sig) { sig == pkh })
+    Script(hash) ->
+      list.any(
+        self.inputs,
+        fn(inp) { inp.output.address.payment_credential == Script(hash) },
+      )
+  }
+}
+
+pub fn collect_input_hashes(
   inputs: List<Input>,
   programmable_logic_base: Credential,
   token_policy: PolicyId,
@@ -74,7 +66,7 @@ fn collect_input_hashes(
   )
 }
 
-fn collect_output_hashes(
+pub fn collect_output_hashes(
   outputs: List<Output>,
   programmable_logic_base: Credential,
   token_policy: PolicyId,
@@ -95,7 +87,7 @@ fn collect_output_hashes(
   )
 }
 
-fn check_whitelist(
+pub fn check_whitelist(
   hashes: List<ByteArray>,
   proofs: List<WhitelistProof>,
   reference_inputs: List<Input>,
@@ -126,7 +118,7 @@ fn is_whitelisted(
   node.key == hash
 }
 
-fn validate_whitelist_node(
+pub fn validate_whitelist_node(
   output: Output,
   whitelist_policy: PolicyId,
 ) -> WhitelistNode {
@@ -149,7 +141,7 @@ fn validate_whitelist_node(
   node
 }
 
-fn output_stake_hash(output: Output) -> ByteArray {
+pub fn output_stake_hash(output: Output) -> ByteArray {
   expect Some(Inline(stake_cred)) = output.address.stake_credential
 
   when stake_cred is {

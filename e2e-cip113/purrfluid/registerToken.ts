@@ -1,21 +1,13 @@
 /**
- * registerToken.ts — Step 3
+ * registerToken.ts — Step 2
  *
- * Registers the issuance_mint policy in the on-chain CIP-113 token registry.
- *
- * Key changes from previous version (aligned with reference FluidMesh.registerInRegistry):
- *
- *  1. Uses issuer_admin_contract (adminContract) for minting authorization,
- *     NOT freeze_and_seize_transfer (transferLogic).
- *  2. Fetches registry_mint and registry_spend CBOR from Blockfrost API
- *     instead of computing locally from blueprint (avoids CBOR mismatch).
- *  3. Finds registry_spend address from on-chain head node UTxO.
- *  4. New node datum: third_party_transfer_logic = adminContractHash.
- *  5. IssuanceCborHex datum decoded with proper CBOR bytestring handling.
+ * Registers the issuance_mint policy in the on-chain CIP-113 token registry
+ * and mints the initial PurrFluid supply to wallet1's smart wallet.
  *
  * Prerequisites:
- *   - BLACKLIST_MINT_HASH filled in config.ts (Step 1)
- *   - TOKEN_POLICY_ID filled in config.ts (Step 2)
+ *   - deployWhitelist.ts completed
+ *   - insertWhitelist.ts completed
+ *   - registerStake.ts completed
  */
 
 import {
@@ -37,7 +29,6 @@ import {
 } from "../setup.js";
 
 import {
-  BLACKLIST_MINT_HASH,
   TOKEN_POLICY_ID,
   TOKEN_ASSET_NAME,
   TOKEN_SUPPLY,
@@ -58,12 +49,7 @@ import {
 
 validateConfig();
 
-if (!BLACKLIST_MINT_HASH)
-  throw new Error("BLACKLIST_MINT_HASH is empty — run Step 1 first");
-if (!TOKEN_POLICY_ID)
-  throw new Error("TOKEN_POLICY_ID is empty — run Step 2 first");
-
-console.log("=== Step 3: Register Token ===");
+console.log("=== Step 2: Register Token + Mint Supply ===");
 console.log("TOKEN_POLICY_ID:      ", TOKEN_POLICY_ID);
 console.log("issuancePolicyId:     ", issuancePolicyId);
 console.log("adminContractHash:    ", adminContractHash);
@@ -76,9 +62,8 @@ console.log("registryMintPolicyId: ", registryMintPolicyId);
 // ─────────────────────────────────────────────────────────────────────────────
 
 console.log("\nFinding registry head node...");
-const headNodeAddresses = await blockchainProvider.fetchAssetAddresses(
-  registryMintPolicyId
-);
+const headNodeAddresses =
+  await blockchainProvider.fetchAssetAddresses(registryMintPolicyId);
 if (!headNodeAddresses?.length)
   throw new Error("Registry head node not found — check registryMintPolicyId");
 
@@ -110,12 +95,11 @@ console.log(
   `IssuanceCborHex UTxO: ${issuanceCborHexUtxo.input.txHash}#${issuanceCborHexUtxo.input.outputIndex}`
 );
 
-
 console.log("\nFetching ProtocolParams UTxO...");
-const protocolParamsUnit = protocolParamsPolicyId + stringToHex("ProtocolParams");
-const protocolParamsAddresses = await blockchainProvider.fetchAssetAddresses(
-  protocolParamsUnit
-);
+const protocolParamsUnit =
+  protocolParamsPolicyId + stringToHex("ProtocolParams");
+const protocolParamsAddresses =
+  await blockchainProvider.fetchAssetAddresses(protocolParamsUnit);
 if (!protocolParamsAddresses?.length)
   throw new Error(
     `ProtocolParams asset not found on chain. Unit: ${protocolParamsUnit}`
@@ -259,7 +243,9 @@ for (const { utxo, node } of parsedNodes) {
   if (node.key < TOKEN_POLICY_ID && TOKEN_POLICY_ID < node.next) {
     coveringUtxo = utxo;
     coveringNode = node;
-    console.log(`Covering node: ${utxo.input.txHash}#${utxo.input.outputIndex}`);
+    console.log(
+      `Covering node: ${utxo.input.txHash}#${utxo.input.outputIndex}`
+    );
     console.log(`   key:  "${node.key || "(origin)"}"`);
     console.log(`   next: "${node.next}"`);
     break;
@@ -313,9 +299,9 @@ const updatedCoveringDatum = conStr0([
 const newNodeDatum = conStr0([
   byteString(TOKEN_POLICY_ID),
   byteString(coveringNode.next),
-  conStr1([byteString(transferLogicHash)]),       // transfer_logic = Script(transferLogicHash)
-  conStr1([byteString(adminContractHash)]),        // third_party_transfer_logic = Script(adminContractHash)
-  byteString(""),                                  // global_state_cs = empty
+  conStr1([byteString(transferLogicHash)]), // transfer_logic = Script(transferLogicHash)
+  conStr1([byteString(adminContractHash)]), // third_party_transfer_logic = Script(adminContractHash)
+  byteString(""), // global_state_cs = empty
 ]);
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -394,7 +380,7 @@ txBuilder
   .mint(String(TOKEN_SUPPLY), issuancePolicyId, TOKEN_ASSET_NAME)
   .mintingScript(issuanceCbor)
   .mintRedeemerValue(
-    conStr0([conStr1([byteString(adminContractHash)])]),
+    conStr0([conStr1([byteString(adminContractHash)]), conStr1([integer(2)])]),
     "JSON"
   );
 
@@ -426,4 +412,4 @@ console.log("TX Hash:           ", txHash);
 console.log("TOKEN_POLICY_ID:   ", TOKEN_POLICY_ID);
 console.log("transferLogicHash: ", transferLogicHash);
 console.log("adminContractHash: ", adminContractHash);
-console.log("\nStep 3 complete — run spend.ts next");
+console.log("\nStep 2 complete — run spend.ts next");

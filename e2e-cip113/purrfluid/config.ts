@@ -2,11 +2,11 @@
  * config.ts — Shared config for all CIP-113 deployment steps
  *
  * Flow:
- *   Step 1:  deployBlacklist.ts  → BLACKLIST_MINT_HASH + BLACKLIST_SEED_UTXO
+ *   Step 1:  deployWhitelist.ts  → initializes the PurrFluid whitelist
+ *   Step 1a: insertWhitelist.ts  → whitelists wallet1
  *   Step 1b: registerStake.ts    → registers transferLogic + adminContract stake creds
- *   Step 2:  mintTokens.ts       → TOKEN_POLICY_ID
- *   Step 3:  registerToken.ts    → registers token in on-chain directory
- *   Step 4:  spend.ts            → transfers tokens between smart wallets
+ *   Step 2:  registerToken.ts    → registers token and mints PurrFluid supply
+ *   Step 3:  spend.ts            → transfers PurrFluid tokens between smart wallets
  */
 
 import {
@@ -28,38 +28,52 @@ import { wallet1VK, wallet1SK, NETWORK_ID } from "../setup.js";
 
 export { NETWORK_ID };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// BLUEPRINT — single file for all validators
-// ─────────────────────────────────────────────────────────────────────────────
+// Base CIP-113 validators
+const { default: baseBlueprint } = await import(
+  "../../cip113-programmable-tokens/plutus.json",
+  { with: { type: "json" } }
+);
 
-const { default: blueprint } = await import("./blueprint.json", {
-  with: { type: "json" },
-});
+// PurrFluid validators
+const { default: purrfluidBlueprint } = await import(
+  "../../purrfluid-contracts/plutus.json",
+  { with: { type: "json" } }
+);
 
-export { blueprint };
+export { baseBlueprint, purrfluidBlueprint };
 
-export const getValidator = (title: string): string => {
-  const v = (blueprint.validators as any[]).find((x) => x.title === title);
-  if (!v) throw new Error(`Validator not found: ${title}`);
+// Keep old name temporarily so existing scripts don't break yet.
+export const blueprint = baseBlueprint;
+
+export const getBaseValidator = (title: string): string => {
+  const v = (baseBlueprint.validators as any[]).find((x) => x.title === title);
+  if (!v) throw new Error(`Base validator not found: ${title}`);
   return v.compiledCode as string;
 };
 
+export const getPurrfluidValidator = (title: string): string => {
+  const v = (purrfluidBlueprint.validators as any[]).find(
+    (x) => x.title === title
+  );
+  if (!v) throw new Error(`PurrFluid validator not found: ${title}`);
+  return v.compiledCode as string;
+};
+
+// Keep old helper temporarily. We'll migrate callers gradually.
+export const getValidator = getBaseValidator;
+
 // ─────────────────────────────────────────────────────────────────────────────
-// STEP 1 OUTPUT — fill in after deployBlacklist.ts
+// WHITELIST SEED — set before deployWhitelist.ts
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const BLACKLIST_SEED_TX_HASH =
+export const WHITELIST_SEED_TX_HASH =
   "175590ef834a406774e889032e5996a208c67a575688c1414e5b4049d8eb4efd";
-export const BLACKLIST_SEED_TX_INDEX = 2;
-export const BLACKLIST_MINT_HASH =
-  "ba7ed916a5e3ee12f41573abbfc1f05f02ca833411f373146d62015a";
+export const WHITELIST_SEED_TX_INDEX = 2;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// STEP 2 OUTPUT — fill in after mintTokens.ts
+// TOKEN CONFIG — TOKEN_POLICY_ID is derived from issuancePolicyId below
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const TOKEN_POLICY_ID =
-  "ec107b98e0026f9c8a4a010eaa9d1ca81aa53c0d862e5cb488f1cf85";
 export const TOKEN_ASSET_NAME = stringToHex("purrfluid");
 export const TOKEN_SUPPLY = 100_000;
 
@@ -142,51 +156,50 @@ export const wallet1SmartAddr = serializePlutusScript(
 export const getSmartAddr = (stakeKeyHash: string) =>
   serializePlutusScript(baseScript, stakeKeyHash, NETWORK_ID, false).address;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// BLACKLIST SPEND — blacklist_spend(blacklistMintHash)
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const blacklistSpendCbor = applyParamsToScript(
-  getValidator("blacklist_spend.blacklist_spend.spend"),
-  [byteString(BLACKLIST_MINT_HASH)],
+export const whitelistMintCbor = applyParamsToScript(
+  getPurrfluidValidator("purrfluid_whitelist.purrfluid_whitelist.mint"),
+  [
+    conStr0([
+      byteString(WHITELIST_SEED_TX_HASH),
+      integer(WHITELIST_SEED_TX_INDEX),
+    ]),
+    conStr0([byteString(wallet1VK)]),
+  ],
   "JSON"
 );
-export const blacklistSpendScript = {
-  code: blacklistSpendCbor,
+export const whitelistPolicyId = resolveScriptHash(whitelistMintCbor, "V3");
+
+export const whitelistSpendCbor = applyParamsToScript(
+  getPurrfluidValidator("purrfluid_whitelist.purrfluid_whitelist.spend"),
+  [
+    conStr0([
+      byteString(WHITELIST_SEED_TX_HASH),
+      integer(WHITELIST_SEED_TX_INDEX),
+    ]),
+    conStr0([byteString(wallet1VK)]),
+  ],
+  "JSON"
+);
+
+export const whitelistSpendScript = {
+  code: whitelistSpendCbor,
   version: "V3",
 } as PlutusScript;
-export const blacklistSpendAddr = serializePlutusScript(
-  blacklistSpendScript,
+
+export const whitelistSpendAddr = serializePlutusScript(
+  whitelistSpendScript,
   undefined,
   NETWORK_ID,
   false
 ).address;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TRANSFER LOGIC — freeze_and_seize_transfer(Script(baseHash), blacklistMintHash)
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const transferLogicCbor = applyParamsToScript(
-  getValidator("example_transfer_logic.freeze_and_seize_transfer.withdraw"),
-  [conStr1([byteString(baseHash)]), byteString(BLACKLIST_MINT_HASH)],
-  "JSON"
-);
-export const transferLogicHash = resolveScriptHash(transferLogicCbor, "V3");
-export const transferLogicRewardAddr = serializeRewardAddress(
-  transferLogicHash,
-  true,
-  NETWORK_ID
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ADMIN CONTRACT — example_transfer_logic(VerificationKey(wallet1VK))
-// This is the simple minting-authorization credential.
-// issuance_mint is parameterized with this hash (NOT transferLogicHash).
+// ADMIN CONTRACT — purrfluid_issuer(VerificationKey(wallet1VK))
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const adminContractCbor = applyParamsToScript(
-  getValidator("example_transfer_logic.example_transfer_logic.withdraw"),
-  [conStr0([byteString(wallet1VK)])], // VerificationKey(adminPkh)
+  getPurrfluidValidator("purrfluid_issuer.purrfluid_issuer.withdraw"),
+  [conStr0([byteString(wallet1VK)])],
   "JSON"
 );
 export const adminContractHash = resolveScriptHash(adminContractCbor, "V3");
@@ -197,15 +210,42 @@ export const adminContractRewardAddr = serializeRewardAddress(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ISSUANCE MINT — issuance_mint(Script(baseHash), Script(adminContractHash))
+// ISSUANCE MINT — issuance_mint(Script(baseHash), registryMintPolicyId, Script(adminContractHash), Script(globalHash))
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const issuanceCbor = applyParamsToScript(
-  getValidator("issuance_mint.issuance_mint.mint"),
-  [conStr1([byteString(baseHash)]), conStr1([byteString(adminContractHash)])],
+  getBaseValidator("issuance_mint.issuance_mint.mint"),
+  [
+    conStr1([byteString(baseHash)]),
+    byteString(registryMintPolicyId),
+    conStr1([byteString(adminContractHash)]),
+    conStr1([byteString(globalHash)]),
+  ],
   "JSON"
 );
 export const issuancePolicyId = resolveScriptHash(issuanceCbor, "V3");
+
+export const TOKEN_POLICY_ID = issuancePolicyId;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TRANSFER LOGIC — purrfluid_transfer(Script(baseHash), tokenPolicy, whitelistPolicy)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const transferLogicCbor = applyParamsToScript(
+  getPurrfluidValidator("purrfluid_transfer.purrfluid_transfer.withdraw"),
+  [
+    conStr1([byteString(baseHash)]),
+    byteString(TOKEN_POLICY_ID),
+    byteString(whitelistPolicyId),
+  ],
+  "JSON"
+);
+export const transferLogicHash = resolveScriptHash(transferLogicCbor, "V3");
+export const transferLogicRewardAddr = serializeRewardAddress(
+  transferLogicHash,
+  true,
+  NETWORK_ID
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // REGISTRY MINT — registry_mint(utxo_ref, issuanceScriptHash)
@@ -235,7 +275,8 @@ export const validateConfig = () => {
   console.log("registryMintHash:     ", registryMintHash);
   console.log("registryMintPolicyId: ", registryMintPolicyId);
   console.log("wallet1SmartAddr:     ", wallet1SmartAddr);
-  console.log("blacklistSpendAddr:   ", blacklistSpendAddr);
+  console.log("whitelistPolicyId:    ", whitelistPolicyId);
+  console.log("whitelistSpendAddr:   ", whitelistSpendAddr);
   console.log("registrySpendAddr:    ", registrySpendAddr);
 
   if (registryMintHash !== registryMintPolicyId) {

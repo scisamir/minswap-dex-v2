@@ -2,10 +2,10 @@
  * registerStake.ts — Step 1b
  *
  * Registers the stake credentials for:
- *   1. freeze_and_seize_transfer (transferLogic) — needed for transfers
- *   2. example_transfer_logic (adminContract) — needed for minting + registration
+ *   1. purrfluid_transfer (transferLogic) — needed for transfers
+ *   2. purrfluid_issuer (adminContract) — needed for token registration
  *
- * Must be run ONCE after deployBlacklist.ts (Step 1) and before mintTokens.ts (Step 2).
+ * Must be run once after deployWhitelist.ts and before registerToken.ts.
  *
  * Cost: 2 ADA deposit per credential (refundable on deregistration)
  */
@@ -37,7 +37,7 @@ const txBuilder = new MeshTxBuilder({
 });
 
 txBuilder.registerStakeCertificate(transferLogicRewardAddr);
-// .registerStakeCertificate(adminContractRewardAddr);
+txBuilder.registerStakeCertificate(adminContractRewardAddr);
 
 const unsignedTx = await txBuilder
   .selectUtxosFrom(walletUtxos)
@@ -52,4 +52,4 @@ console.log("\n================================");
 console.log("Stake credentials registered!");
 console.log("================================");
 console.log("TX Hash:", txHash);
-console.log("\nNow run mintTokens.ts (Step 2)");
+console.log("\nNow run registerToken.ts (Step 2)");
