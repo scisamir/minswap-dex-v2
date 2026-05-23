@@ -8,16 +8,16 @@
  */
 
 import {
+  BlockfrostProvider,
   MeshTxBuilder,
-  applyParamsToScript,
   deserializeDatum,
   stringToHex,
-  byteString,
   conStr,
   conStr0,
   integer,
   list,
 } from "@meshsdk/core";
+import { DEFAULT_V3_COST_MODEL_LIST } from "@meshsdk/common";
 
 import {
   blockchainProvider,
@@ -29,6 +29,7 @@ import {
 import {
   TOKEN_POLICY_ID,
   TOKEN_ASSET_NAME,
+  globalCbor,
   globalRewardAddr,
   baseCbor,
   wallet1SmartAddr,
@@ -41,11 +42,48 @@ import {
   registrySpendAddr,
   protocolParamsPolicyId,
   NETWORK_ID,
-  getValidator,
   validateConfig,
 } from "./config.js";
 
 validateConfig();
+
+const blockfrostId = process.env.BLOCKFROST_ID;
+const txProvider = blockfrostId
+  ? new BlockfrostProvider(blockfrostId)
+  : blockchainProvider;
+
+const useLivePlutusV3CostModel = async () => {
+  if (!blockfrostId) return;
+
+  const network = blockfrostId.slice(0, 7);
+  const response = await fetch(
+    `https://cardano-${network}.blockfrost.io/api/v0/epochs/latest/parameters`,
+    { headers: { project_id: blockfrostId } }
+  );
+  if (!response.ok) {
+    throw new Error(
+      `Could not fetch current protocol params from Blockfrost: ${response.status}`
+    );
+  }
+
+  const params = (await response.json()) as {
+    cost_models?: { PlutusV3?: Record<string, number> };
+  };
+  const plutusV3CostModel = params.cost_models?.PlutusV3;
+  if (!plutusV3CostModel) {
+    throw new Error("Blockfrost protocol params did not include PlutusV3 cost model");
+  }
+
+  const values = Object.values(plutusV3CostModel).map(Number);
+  DEFAULT_V3_COST_MODEL_LIST.splice(
+    0,
+    DEFAULT_V3_COST_MODEL_LIST.length,
+    ...values
+  );
+  console.log("PlutusV3 cost model:   ", `${values.length} params`);
+};
+
+await useLivePlutusV3CostModel();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIG — change RECIPIENT_STAKE_KEY to send to another wallet
@@ -57,11 +95,6 @@ const RECIPIENT_STAKE_KEY = wallet1VK; // loopback by default
 const senderSmartAddr = wallet1SmartAddr;
 const recipientSmartAddr = getSmartAddr(RECIPIENT_STAKE_KEY);
 const tokenUnit = TOKEN_POLICY_ID + TOKEN_ASSET_NAME;
-const globalCbor = applyParamsToScript(
-  getValidator("programmable_logic_global.programmable_logic_global.withdraw"),
-  [byteString(protocolParamsPolicyId)],
-  "JSON"
-);
 
 console.log("=== Step 3: Transfer PurrFluid Tokens ===");
 console.log("transferLogicRewardAddr:", transferLogicRewardAddr);
@@ -74,7 +107,7 @@ console.log("whitelistSpendAddr:     ", whitelistSpendAddr);
 
 console.log("\n=== Registry ===");
 const registryUtxos =
-  await blockchainProvider.fetchAddressUTxOs(registrySpendAddr);
+  await txProvider.fetchAddressUTxOs(registrySpendAddr);
 let registryNodeUtxo: (typeof registryUtxos)[0] | null = null;
 
 for (const utxo of registryUtxos) {
@@ -117,13 +150,13 @@ if (registryTransferHash && registryTransferHash !== transferLogicHash) {
 const protocolParamsUnit =
   protocolParamsPolicyId + stringToHex("ProtocolParams");
 const protocolParamsAddresses =
-  await blockchainProvider.fetchAssetAddresses(protocolParamsUnit);
+  await txProvider.fetchAssetAddresses(protocolParamsUnit);
 if (!protocolParamsAddresses.length) {
   throw new Error(
     `ProtocolParams asset not found on chain. Unit: ${protocolParamsUnit}`
   );
 }
-const protocolParamsAddressUtxos = await blockchainProvider.fetchAddressUTxOs(
+const protocolParamsAddressUtxos = await txProvider.fetchAddressUTxOs(
   protocolParamsAddresses[0].address
 );
 const protocolParamsUtxo = protocolParamsAddressUtxos.find((u) =>
@@ -137,7 +170,7 @@ if (!protocolParamsUtxo) throw new Error("ProtocolParams UTxO not found");
 
 console.log("\n=== Smart Wallet UTxOs ===");
 const smartWalletUtxos =
-  await blockchainProvider.fetchAddressUTxOs(senderSmartAddr);
+  await txProvider.fetchAddressUTxOs(senderSmartAddr);
 if (!smartWalletUtxos.length)
   throw new Error(`No UTxOs at sender smart wallet: ${senderSmartAddr}`);
 
@@ -169,7 +202,7 @@ console.log(
 
 console.log("\n=== Whitelist Proofs ===");
 const whitelistUtxos =
-  await blockchainProvider.fetchAddressUTxOs(whitelistSpendAddr);
+  await txProvider.fetchAddressUTxOs(whitelistSpendAddr);
 console.log(`Found ${whitelistUtxos.length} whitelist node(s)`);
 
 const proofKeys = [
@@ -302,9 +335,9 @@ const walletAddress = await wallet1.getChangeAddress();
 console.log("\n=== Building Transaction ===");
 
 const txBuilder = new MeshTxBuilder({
-  fetcher: blockchainProvider,
-  evaluator: blockchainProvider,
-  submitter: blockchainProvider,
+  fetcher: txProvider,
+  evaluator: txProvider,
+  submitter: txProvider,
   verbose: true,
 });
 
@@ -368,8 +401,13 @@ console.log("Completing transaction...");
 txBuilder.setNetwork(NETWORK_ID === 0 ? "preview" : "mainnet");
 await txBuilder.complete();
 
+if (process.env.PURRFLUID_DRY_RUN === "1") {
+  console.log("\nDry run complete — transaction evaluated successfully.");
+  process.exit(0);
+}
+
 const signedTx = await wallet1.signTx(txBuilder.txHex, false);
-const txHash = await wallet1.submitTx(signedTx);
+const txHash = await txProvider.submitTx(signedTx);
 
 console.log("\n================================");
 console.log("✅ Transfer complete!");

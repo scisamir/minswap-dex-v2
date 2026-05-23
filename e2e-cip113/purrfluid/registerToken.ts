@@ -11,15 +11,16 @@
  */
 
 import {
+  BlockfrostProvider,
   MeshTxBuilder,
   deserializeDatum,
-  applyParamsToScript,
   stringToHex,
   byteString,
   conStr0,
   conStr1,
   integer,
 } from "@meshsdk/core";
+import { DEFAULT_V3_COST_MODEL_LIST } from "@meshsdk/common";
 
 import {
   blockchainProvider,
@@ -36,6 +37,8 @@ import {
   issuanceScriptHash,
   issuanceCbor,
   issuancePolicyId,
+  registryMintCbor,
+  registrySpendCbor,
   transferLogicHash,
   adminContractCbor,
   adminContractHash,
@@ -43,11 +46,48 @@ import {
   wallet1SmartAddr,
   NETWORK_ID,
   protocolParamsPolicyId,
-  getValidator,
   validateConfig,
 } from "./config.js";
 
 validateConfig();
+
+const blockfrostId = process.env.BLOCKFROST_ID;
+const txProvider = blockfrostId
+  ? new BlockfrostProvider(blockfrostId)
+  : blockchainProvider;
+
+const useLivePlutusV3CostModel = async () => {
+  if (!blockfrostId) return;
+
+  const network = blockfrostId.slice(0, 7);
+  const response = await fetch(
+    `https://cardano-${network}.blockfrost.io/api/v0/epochs/latest/parameters`,
+    { headers: { project_id: blockfrostId } }
+  );
+  if (!response.ok) {
+    throw new Error(
+      `Could not fetch current protocol params from Blockfrost: ${response.status}`
+    );
+  }
+
+  const params = (await response.json()) as {
+    cost_models?: { PlutusV3?: Record<string, number> };
+  };
+  const plutusV3CostModel = params.cost_models?.PlutusV3;
+  if (!plutusV3CostModel) {
+    throw new Error("Blockfrost protocol params did not include PlutusV3 cost model");
+  }
+
+  const values = Object.values(plutusV3CostModel).map(Number);
+  DEFAULT_V3_COST_MODEL_LIST.splice(
+    0,
+    DEFAULT_V3_COST_MODEL_LIST.length,
+    ...values
+  );
+  console.log("PlutusV3 cost model:   ", `${values.length} params`);
+};
+
+await useLivePlutusV3CostModel();
 
 console.log("=== Step 2: Register Token + Mint Supply ===");
 console.log("TOKEN_POLICY_ID:      ", TOKEN_POLICY_ID);
@@ -63,7 +103,7 @@ console.log("registryMintPolicyId: ", registryMintPolicyId);
 
 console.log("\nFinding registry head node...");
 const headNodeAddresses =
-  await blockchainProvider.fetchAssetAddresses(registryMintPolicyId);
+  await txProvider.fetchAssetAddresses(registryMintPolicyId);
 if (!headNodeAddresses?.length)
   throw new Error("Registry head node not found — check registryMintPolicyId");
 
@@ -78,13 +118,13 @@ console.log("\nFetching IssuanceCborHex UTxO...");
 const issuanceCborHexTokenName = Buffer.from("IssuanceCborHex").toString("hex");
 const issuanceCborHexUnit = issuanceScriptHash + issuanceCborHexTokenName;
 const issuanceCborHexAddresses =
-  await blockchainProvider.fetchAssetAddresses(issuanceCborHexUnit);
+  await txProvider.fetchAssetAddresses(issuanceCborHexUnit);
 if (!issuanceCborHexAddresses?.length)
   throw new Error(
     `IssuanceCborHex asset not found on chain. Unit: ${issuanceCborHexUnit}`
   );
 
-const issuanceCborHexUtxos = await blockchainProvider.fetchAddressUTxOs(
+const issuanceCborHexUtxos = await txProvider.fetchAddressUTxOs(
   issuanceCborHexAddresses[0].address
 );
 const issuanceCborHexUtxo = issuanceCborHexUtxos.find((u) =>
@@ -99,13 +139,13 @@ console.log("\nFetching ProtocolParams UTxO...");
 const protocolParamsUnit =
   protocolParamsPolicyId + stringToHex("ProtocolParams");
 const protocolParamsAddresses =
-  await blockchainProvider.fetchAssetAddresses(protocolParamsUnit);
+  await txProvider.fetchAssetAddresses(protocolParamsUnit);
 if (!protocolParamsAddresses?.length)
   throw new Error(
     `ProtocolParams asset not found on chain. Unit: ${protocolParamsUnit}`
   );
 
-const protocolParamsUtxos = await blockchainProvider.fetchAddressUTxOs(
+const protocolParamsUtxos = await txProvider.fetchAddressUTxOs(
   protocolParamsAddresses[0].address
 );
 const protocolParamsUtxo = protocolParamsUtxos.find((u) =>
@@ -150,23 +190,10 @@ console.log("   postfix len:", postfixHex.length / 2, "bytes");
 console.log("   hashed_param len:", hashedParam.length / 2, "bytes");
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 4. Fetch registry_spend CBOR from Blockfrost
-//    (avoids blueprint CBOR mismatch with on-chain deployment)
+// 4. Use checked registry scripts from config
 // ─────────────────────────────────────────────────────────────────────────────
 
-console.log("\nFetching registry scripts from chain...");
-
-const registrySpendCbor = applyParamsToScript(
-  getValidator("registry_spend.registry_spend.spend"),
-  [byteString(protocolParamsPolicyId)],
-  "JSON"
-);
-console.log("registry_spend CBOR computed locally");
-
-// Also use locally computed registry_mint CBOR (from config)
-// The config already computes registryMintCbor with the correct params
-const { registryMintCbor } = await import("./config.js");
-console.log("registry_mint CBOR from config");
+console.log("\nUsing registry scripts from config");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 5. Find covering registry node: node.key < TOKEN_POLICY_ID < node.next
@@ -174,16 +201,14 @@ console.log("registry_mint CBOR from config");
 
 console.log("\nSearching registry for covering node...");
 const registryUtxos =
-  await blockchainProvider.fetchAddressUTxOs(registrySpendAddr);
+  await txProvider.fetchAddressUTxOs(registrySpendAddr);
 console.log(`Found ${registryUtxos.length} registry UTxO(s)`);
 
 type RegistryNode = {
   key: string;
   next: string;
-  transferLogicConstructor: number;
-  transferLogicHash: string;
-  thirdPartyTransferLogicConstructor: number;
-  thirdPartyTransferLogicHash: string;
+  transferLogicCredential: any;
+  thirdPartyTransferLogicCredential: any;
   globalStateCs: string;
   lovelace: string;
   tokenUnit: string;
@@ -214,10 +239,8 @@ for (const utxo of registryUtxos) {
       node: {
         key,
         next,
-        transferLogicConstructor: tlField?.constructor ?? 1,
-        transferLogicHash: tlField?.fields?.[0]?.bytes ?? "",
-        thirdPartyTransferLogicConstructor: tptlField?.constructor ?? 1,
-        thirdPartyTransferLogicHash: tptlField?.fields?.[0]?.bytes ?? "",
+        transferLogicCredential: tlField,
+        thirdPartyTransferLogicCredential: tptlField,
         globalStateCs: gscField?.bytes ?? "",
         lovelace,
         tokenUnit,
@@ -278,21 +301,11 @@ if (!coveringUtxo || !coveringNode) {
 //   global_state_cs                   = byteString("") — empty
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Rebuild covering node's credential fields exactly as they were
-const coveringTlCred =
-  coveringNode.transferLogicConstructor === 0
-    ? conStr0([byteString(coveringNode.transferLogicHash)])
-    : conStr1([byteString(coveringNode.transferLogicHash)]);
-const coveringTptlCred =
-  coveringNode.thirdPartyTransferLogicConstructor === 0
-    ? conStr0([byteString(coveringNode.thirdPartyTransferLogicHash)])
-    : conStr1([byteString(coveringNode.thirdPartyTransferLogicHash)]);
-
 const updatedCoveringDatum = conStr0([
   byteString(coveringNode.key),
   byteString(TOKEN_POLICY_ID), // next → new node
-  coveringTlCred,
-  coveringTptlCred,
+  coveringNode.transferLogicCredential,
+  coveringNode.thirdPartyTransferLogicCredential,
   byteString(coveringNode.globalStateCs),
 ]);
 
@@ -312,9 +325,9 @@ const walletUtxos = await wallet1.getUtxos();
 const walletAddress = await wallet1.getChangeAddress();
 
 const txBuilder = new MeshTxBuilder({
-  fetcher: blockchainProvider,
-  evaluator: blockchainProvider,
-  submitter: blockchainProvider,
+  fetcher: txProvider,
+  evaluator: txProvider,
+  submitter: txProvider,
   verbose: true,
 });
 
@@ -402,8 +415,13 @@ await txBuilder
   .setNetwork(NETWORK_ID === 0 ? "preview" : "mainnet")
   .complete();
 
+if (process.env.PURRFLUID_DRY_RUN === "1") {
+  console.log("\nDry run complete — transaction evaluated successfully.");
+  process.exit(0);
+}
+
 const signedTx = await wallet1.signTx(txBuilder.txHex, true);
-const txHash = await wallet1.submitTx(signedTx);
+const txHash = await txProvider.submitTx(signedTx);
 
 console.log("\n================================");
 console.log("Token registered!");

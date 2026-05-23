@@ -1,0 +1,9 @@
+deployBaseProtocol Bootstrap tx: 00e0111a68bcb516b754905ac20282f8eb0f115d2432f5668398f39cfa68c34d
+
+deployWhitelist tx: ec367c278e58826860e55a9ebd09c288375462371bb9865754a28a6abcac8405
+
+insertWhitelist tx: 5b3b0c54403e155a71a2e1ee93362679e5d7268d928d6b7d82f3f4cca9e626bb
+
+registerToken tx: e62570f27c014f672a5917fc981ecfe1acf5a484c40bb84c159fec1bf829df3f
+
+spend.ts tx: e8f270cb39b346e54452d8cfb6a6f1d7bfb881a9bda0b3c9dee18164d3b0e6d0
