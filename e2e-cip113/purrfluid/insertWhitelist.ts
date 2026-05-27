@@ -1,7 +1,9 @@
 /**
  * insertWhitelist.ts - Step 1a
  *
- * Inserts wallet1's stake key hash into the PurrFluid whitelist.
+ * Inserts a stake credential hash into the PurrFluid whitelist.
+ * Defaults to wallet1's credential; set PURRFLUID_WHITELIST_KEY for DEX
+ * script credentials such as poolValidatorScriptHash or orderValidatorScriptHash.
  *
  * Prerequisites:
  *   - deployWhitelist.ts completed
@@ -15,7 +17,6 @@ import {
   conStr1,
   deserializeDatum,
 } from "@meshsdk/core";
-import { DEFAULT_V3_COST_MODEL_LIST } from "@meshsdk/common";
 
 import {
   blockchainProvider,
@@ -40,40 +41,10 @@ const txProvider = blockfrostId
   ? new BlockfrostProvider(blockfrostId)
   : blockchainProvider;
 
-const useLivePlutusV3CostModel = async () => {
-  if (!blockfrostId) return;
-
-  const network = blockfrostId.slice(0, 7);
-  const response = await fetch(
-    `https://cardano-${network}.blockfrost.io/api/v0/epochs/latest/parameters`,
-    { headers: { project_id: blockfrostId } }
-  );
-  if (!response.ok) {
-    throw new Error(
-      `Could not fetch current protocol params from Blockfrost: ${response.status}`
-    );
-  }
-
-  const params = (await response.json()) as {
-    cost_models?: { PlutusV3?: Record<string, number> };
-  };
-  const plutusV3CostModel = params.cost_models?.PlutusV3;
-  if (!plutusV3CostModel) {
-    throw new Error("Blockfrost protocol params did not include PlutusV3 cost model");
-  }
-
-  const values = Object.values(plutusV3CostModel).map(Number);
-  DEFAULT_V3_COST_MODEL_LIST.splice(
-    0,
-    DEFAULT_V3_COST_MODEL_LIST.length,
-    ...values
-  );
-  console.log("PlutusV3 cost model:   ", `${values.length} params`);
-};
-
-await useLivePlutusV3CostModel();
-
-const TARGET_KEY_HASH = wallet1VK;
+const TARGET_KEY_HASH = process.env.PURRFLUID_WHITELIST_KEY;
+if (!TARGET_KEY_HASH) {
+  throw new Error("TARGET_KEY_HASH does not exist!");
+}
 
 if (TARGET_KEY_HASH.length !== 56) {
   throw new Error(`Whitelist key must be 28 bytes hex: ${TARGET_KEY_HASH}`);
@@ -86,8 +57,7 @@ console.log("targetKeyHash:      ", TARGET_KEY_HASH);
 console.log("whitelistPolicyId:  ", whitelistPolicyId);
 console.log("whitelistSpendAddr: ", whitelistSpendAddr);
 
-const whitelistUtxos =
-  await txProvider.fetchAddressUTxOs(whitelistSpendAddr);
+const whitelistUtxos = await txProvider.fetchAddressUTxOs(whitelistSpendAddr);
 
 if (!whitelistUtxos.length) {
   throw new Error("No whitelist nodes found. Run deployWhitelist.ts first.");

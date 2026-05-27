@@ -19,7 +19,6 @@ import {
   scriptAddress,
   scriptHash,
   ScriptHash,
-  stringToHex,
   UTxO,
   resolveNativeScriptHash,
 } from "@meshsdk/core";
@@ -27,27 +26,27 @@ import dotenv from "dotenv";
 dotenv.config();
 import blueprint from "../plutus.json" with { type: "json" };
 import utilBlueprint from "./util_contracts/plutus.json" with { type: "json" };
-import programmableTokensBlueprint from "./programmableTokens/blueprint.json" with { type: "json" };
-import { SHA3 } from "sha3";
+import cip113Blueprint from "../cip113-programmable-tokens/plutus.json" with { type: "json" };
+import purrfluidProtocolBootstrap from "./purrfluid/protocolBoostrap.json" with { type: "json" };
 
 const NETWORK_ID = 0;
 
 // Setup blockhain provider as Maestro
-const maestroKey = process.env.MAESTRO_KEY;
-if (!maestroKey) {
-  throw new Error("MAESTRO_KEY does not exist");
-}
-const blockchainProvider = new MaestroProvider({
-  network: "Preview",
-  apiKey: maestroKey,
-});
+// const maestroKey = process.env.MAESTRO_KEY;
+// if (!maestroKey) {
+//   throw new Error("MAESTRO_KEY does not exist");
+// }
+// const blockchainProvider = new MaestroProvider({
+//   network: "Preview",
+//   apiKey: maestroKey,
+// });
 
 // Setup blockhain provider as Blockfrost
-// const blockfrostId = process.env.BLOCKFROST_ID;
-// if (!blockfrostId) {
-//   throw new Error("BLOCKFROST_ID does not exist");
-// }
-// const blockchainProvider = new BlockfrostProvider(blockfrostId);
+const blockfrostId = process.env.BLOCKFROST_ID;
+if (!blockfrostId) {
+  throw new Error("BLOCKFROST_ID does not exist");
+}
+const blockchainProvider = new BlockfrostProvider(blockfrostId);
 
 // import wallet1's wallet passphrase and initialize the wallet
 const wallet1Passphrase = process.env.WALLET_PASSPHRASE_ONE;
@@ -169,8 +168,8 @@ const calculateInitialLiquidity = (out_a: number, out_b: number) => {
 // );
 
 const programmableGlobalHash =
-  "5db48c6383a98a53ca163e58c0f8c9dbc932d65ba070daff97851282";
-const programmableBaseValidator = programmableTokensBlueprint.validators.find(
+  purrfluidProtocolBootstrap.programmableLogicGlobalPrams.scriptHash;
+const programmableBaseValidator = cip113Blueprint.validators.find(
   (v) => v.title === "programmable_logic_base.programmable_logic_base.spend"
 );
 if (!programmableBaseValidator) {
@@ -182,6 +181,13 @@ const baseScript = applyParamsToScript(
   "JSON"
 );
 const baseHash = resolveScriptHash(baseScript, "V3");
+if (
+  baseHash !== purrfluidProtocolBootstrap.programmableLogicBaseParams.scriptHash
+) {
+  throw new Error(
+    `PurrFluid base hash mismatch: derived ${baseHash}, deployed ${purrfluidProtocolBootstrap.programmableLogicBaseParams.scriptHash}`
+  );
+}
 
 // Authen Minting Policy
 const authenValidator = blueprint.validators.filter((v) =>
@@ -197,7 +203,7 @@ const authenValidator = blueprint.validators.filter((v) =>
 // const dexInitParamTxIndex = 1;
 // (Preview)
 const dexInitParamTxHash =
-  "d5cd7169ad7adc2fba17894ce0531be54d9e8908b2904fb484bce8577bcbd893"; // change this and below on each dex init
+  "5cf28413764400694902c4d08f2970741ca8e344476f36dda667b9d00ac7d1c3"; // change this and below on each dex init
 const dexInitParamTxIndex = 3;
 const authenValidatorScript = applyParamsToScript(
   authenValidator[0].compiledCode,
@@ -369,32 +375,14 @@ const alwaysSuccessMintValidatorHash = resolveScriptHash(
 const AdaTokenA = "";
 const AdaAssetA = mConStr0(["", AdaTokenA]);
 
-const sTokenPolicyId =
-  "ec107b98e0026f9c8a4a010eaa9d1ca81aa53c0d862e5cb488f1cf85";
-const sTokenB = stringToHex("sToken");
-const sTokenUnit = sTokenPolicyId + sTokenB;
-const sTokenAssetB = mConStr0([sTokenPolicyId, sTokenB]);
-
-// compute lp asset name
-const sha3 = (hex: string): string => {
-  const hash = new SHA3(256);
-  hash.update(hex, "hex");
-  return hash.digest("hex");
-};
-const AdaAssetASha256 = sha3("" + AdaTokenA);
-const sTokenAssetBSha256 = sha3(sTokenUnit);
-const sTokenAdaLpAssetName = sha3(AdaAssetASha256 + sTokenAssetBSha256);
-
-console.log("sTokenAdaLpAssetName:", sTokenAdaLpAssetName);
 // asset supplies
 const AdaTokenSupply = 1500000000;
-const myTokenOneSupply = 1500;
+const purrfluidPoolSupply = 1500;
 // const AdaTokenSupply = 15000000;
-// const myTokenOneSupply = 15;
-const sTokenSupply = myTokenOneSupply;
+// const purrfluidPoolSupply = 15;
 const AdaTotalLiquidity = calculateInitialLiquidity(
   AdaTokenSupply,
-  myTokenOneSupply
+  purrfluidPoolSupply
 );
 const maxInt64 = 9223372036854775807n;
 const AdaRemainingLiquidity = maxInt64 - (BigInt(AdaTotalLiquidity) - 10n);
@@ -405,28 +393,6 @@ const AdaSwapAmount = 2000000;
 const orderLovelaceAmount = 5300000;
 
 console.log("userCip113Addr:", userCip113Addr);
-
-// sToken cip113 utxo from the live smart-wallet state
-const sTokenCip113Utxos = (
-  await blockchainProvider.fetchAddressUTxOs(userCip113Addr)
-).filter((utxo) => utxo.output.amount.some((a) => a.unit === sTokenUnit));
-const sTokenCip113Utxo = [...sTokenCip113Utxos].sort((a, b) => {
-  const aQty = BigInt(
-    a.output.amount.find((amount) => amount.unit === sTokenUnit)?.quantity ??
-      "0"
-  );
-  const bQty = BigInt(
-    b.output.amount.find((amount) => amount.unit === sTokenUnit)?.quantity ??
-      "0"
-  );
-  return aQty === bQty ? 0 : aQty > bQty ? -1 : 1;
-})[0];
-if (!sTokenCip113Utxo) {
-  throw new Error("sTokenCip113Utxo not found");
-}
-const sTokenCip113Balance = Number(sTokenCip113Utxo.output.amount[1].quantity);
-console.log("sTokenCip113Utxos:", sTokenCip113Utxos.length);
-console.log("sTokenCip113Balance:", sTokenCip113Balance);
 
 // console.log("orderValidatorScriptHash", orderValidatorScriptHash);
 // console.log("poolBatchingValidatorHash", poolBatchingValidatorHash);
@@ -468,15 +434,15 @@ const calculate_amount_out = (
 // -------------Working hashes---------------- (Preview)
 // pool batching ref script
 const poolBatchingScriptTxHash =
-  "969c0ee422489749e0cb3d080877c7046866ed5718400e6b9d816bb6db38c2cb";
+  "133b0c2b754b224f4f6ffff614f631a902aee8c6d10557128c1a7132ead0c5a8";
 const poolBatchingScriptTxIndex = 0;
 // pool ref script
 const poolScriptTxHash =
-  "1748d195b78c3be99d6c058175b485e4587fad32f5ec0a545c67da9ff6fa228d";
+  "8d8980e933d52d9eda98a4efcfee564a9c7e40e59530394a75e6cb05c586bb8b";
 const poolScriptTxIndex = 0;
 // order ref script
 const orderScriptTxHash =
-  "64b79b6b3964a6bd9cb54c038137741b42e45a4ea721f1ae739d5cac172efb3b";
+  "45b01e5ac0e5788b1c9d8389da345e252b9e5c26e39a68d5d6360d4e61db9bbb";
 const orderScriptTxIndex = 0;
 
 // -------------Working hashes---------------- (Preprod)
@@ -559,13 +525,6 @@ export {
   baseScript,
   baseHash,
   // baseRewardAddress,
-  sTokenB,
-  sTokenAssetB,
-  sTokenAdaLpAssetName,
-  sTokenUnit,
-  sTokenSupply,
-  sTokenCip113Utxo,
-  sTokenCip113Balance,
   // always success mint
   alwaysSuccessValidatorMintScript,
   alwaysSuccessMintValidatorHash,
@@ -576,7 +535,7 @@ export {
   // Utils
   calculateInitialLiquidity,
   // pool utils
-  myTokenOneSupply,
+  purrfluidPoolSupply,
   maxInt64,
   // order utils
   swapAmount,

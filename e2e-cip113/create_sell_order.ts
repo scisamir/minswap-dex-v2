@@ -1,6 +1,4 @@
 import {
-  applyParamsToScript,
-  byteString,
   conStr,
   conStr0,
   deserializeDatum,
@@ -16,6 +14,7 @@ import {
   blockchainProvider,
   orderLovelaceAmount,
   orderValidatorAddress,
+  orderValidatorScriptHash,
   txBuilder,
   wallet1,
   wallet1Address,
@@ -24,24 +23,28 @@ import {
   wallet1VK,
   baseHash,
   swapAmount,
-  sTokenUnit,
-  sTokenAdaLpAssetName,
 } from "./setup.js";
 import {
-  BLACKLIST_MINT_HASH,
   TOKEN_POLICY_ID,
+  globalCbor,
   globalRewardAddr,
   transferLogicCbor,
   transferLogicHash,
   transferLogicRewardAddr,
-  blacklistSpendAddr,
   registrySpendAddr,
   protocolParamsPolicyId,
-  getValidator,
   validateConfig,
   wallet1SmartAddr,
   baseCbor,
-} from "./programmableTokens/config.js";
+} from "./purrfluid/config.js";
+import {
+  purrfluidAdaLpAssetName,
+  purrfluidUnit,
+} from "./purrfluid/dexConfig.js";
+import {
+  fetchWhitelistProofs,
+  uniqueWhitelistUtxos,
+} from "./purrfluid/whitelistProofs.js";
 
 validateConfig();
 
@@ -59,21 +62,15 @@ const orderDatum = mConStr0([
   mConStr0([]),
   mConStr0([
     authenPolicyId,
-    sTokenAdaLpAssetName,
+    purrfluidAdaLpAssetName,
   ]),
   orderStep,
   6000000,
   mConStr1([]),
 ]);
 
-const globalCbor = applyParamsToScript(
-  getValidator("programmable_logic_global.programmable_logic_global.withdraw"),
-  [byteString(protocolParamsPolicyId)],
-  "JSON"
-);
-
 console.log("=== Create Sell Order ===");
-console.log("sTokenAdaLpAssetName:", sTokenAdaLpAssetName);
+console.log("purrfluidAdaLpAssetName:", purrfluidAdaLpAssetName);
 
 console.log("\n=== Registry ===");
 const registryUtxos =
@@ -139,7 +136,7 @@ const selectedUtxos: typeof smartWalletUtxos = [];
 let selectedBalance = 0n;
 
 for (const utxo of smartWalletUtxos) {
-  const qty = utxo.output.amount.find((a: { unit: string; quantity: string }) => a.unit === sTokenUnit)?.quantity;
+  const qty = utxo.output.amount.find((a: { unit: string; quantity: string }) => a.unit === purrfluidUnit)?.quantity;
   if (!qty) continue;
   selectedUtxos.push(utxo);
   selectedBalance += BigInt(qty);
@@ -153,64 +150,31 @@ if (selectedBalance < sendAmountBN) {
 }
 
 const changeAmount = selectedBalance - sendAmountBN;
+selectedUtxos.sort((a, b) => {
+  const cmp = a.input.txHash
+    .toLowerCase()
+    .localeCompare(b.input.txHash.toLowerCase());
+  return cmp !== 0 ? cmp : a.input.outputIndex - b.input.outputIndex;
+});
 console.log(
   `Selected ${selectedUtxos.length} UTxO(s), balance=${selectedBalance}, change=${changeAmount}`
 );
 
-console.log("\n=== Blacklist Proofs ===");
-const blacklistUtxos =
-  await blockchainProvider.fetchAddressUTxOs(blacklistSpendAddr);
-const senderProofKeyHash = wallet1VK;
-
-type ProofEntry = {
-  spendUtxo: (typeof selectedUtxos)[0];
-  blacklistUtxo: (typeof blacklistUtxos)[0];
-};
-
-const proofs: ProofEntry[] = [];
-
-for (const spendUtxo of selectedUtxos) {
-  const coveringNode = blacklistUtxos.find((blUtxo: (typeof blacklistUtxos)[number]) => {
-    if (!blUtxo.output.plutusData) return false;
-    try {
-      const hasBlacklistPolicy = blUtxo.output.amount.some(
-        (a: { unit: string }) =>
-          a.unit !== "lovelace" && a.unit.startsWith(BLACKLIST_MINT_HASH)
-      );
-      if (!hasBlacklistPolicy) return false;
-
-      const datum = deserializeDatum(blUtxo.output.plutusData);
-      const key = datum?.fields?.[0]?.bytes ?? "";
-      const next = datum?.fields?.[1]?.bytes ?? "";
-      return key < senderProofKeyHash && senderProofKeyHash < next;
-    } catch {
-      return false;
-    }
-  });
-
-  if (!coveringNode) {
-    throw new Error(`No blacklist covering node for key hash: ${senderProofKeyHash}`);
-  }
-
-  proofs.push({ spendUtxo, blacklistUtxo: coveringNode });
-}
-
-const uniqueBlacklistUtxos: typeof blacklistUtxos = [];
-const seen = new Set<string>();
-for (const proof of proofs) {
-  const key = `${proof.blacklistUtxo.input.txHash}#${proof.blacklistUtxo.input.outputIndex}`;
-  if (!seen.has(key)) {
-    seen.add(key);
-    uniqueBlacklistUtxos.push(proof.blacklistUtxo);
-  }
-}
+console.log("\n=== PurrFluid Whitelist Proofs ===");
+const proofKeys = [
+  ...selectedUtxos.map(() => wallet1VK),
+  orderValidatorScriptHash,
+  ...(changeAmount > 0n ? [wallet1VK] : []),
+];
+const proofs = await fetchWhitelistProofs(proofKeys);
+const whitelistUtxos = uniqueWhitelistUtxos(proofs);
 
 type RefEntry = { txHash: string; outputIndex: number; label: string };
 const sortedRefs: RefEntry[] = [
-  ...uniqueBlacklistUtxos.map((u: (typeof uniqueBlacklistUtxos)[number]) => ({
+  ...whitelistUtxos.map((u) => ({
     txHash: u.input.txHash,
     outputIndex: u.input.outputIndex,
-    label: "blacklistNode",
+    label: "whitelistNode",
   })),
   {
     txHash: protocolParamsUtxo.input.txHash,
@@ -235,8 +199,8 @@ const registryIndex = sortedRefs.findIndex(
 const proofIndices = proofs.map((proof) =>
   sortedRefs.findIndex(
     (r) =>
-      r.txHash === proof.blacklistUtxo.input.txHash &&
-      r.outputIndex === proof.blacklistUtxo.input.outputIndex
+      r.txHash === proof.utxo.input.txHash &&
+      r.outputIndex === proof.utxo.input.outputIndex
   )
 );
 if (registryIndex < 0 || proofIndices.some((idx) => idx < 0)) {
@@ -272,7 +236,7 @@ for (const ref of sortedRefs) {
 txBuilder
   .txOut(orderValidatorAddress, [
     { unit: "lovelace", quantity: String(orderLovelaceAmount) },
-    { unit: sTokenUnit, quantity: String(swapAmount) },
+    { unit: purrfluidUnit, quantity: String(swapAmount) },
   ])
   .txOutInlineDatumValue(orderDatum)
   .withdrawalPlutusScriptV3()
@@ -288,7 +252,7 @@ if (changeAmount > 0n) {
   txBuilder
     .txOut(wallet1SmartAddr, [
       { unit: "lovelace", quantity: "2000000" },
-      { unit: sTokenUnit, quantity: changeAmount.toString() },
+      { unit: purrfluidUnit, quantity: changeAmount.toString() },
     ])
     .txOutInlineDatumValue(conStr0([]), "JSON");
 }

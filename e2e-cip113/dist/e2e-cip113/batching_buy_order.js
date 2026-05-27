@@ -1,6 +1,8 @@
-import { applyParamsToScript, byteString, conStr, conStr0, deserializeDatum, deserializeAddress, integer, list, mConStr0, mConStr1, serializeAddressObj, SLOT_CONFIG_NETWORK, stringToHex, unixTimeToEnclosingSlot, } from "@meshsdk/core";
-import { AdaAssetA, authenAddress, authenPolicyId, baseScript, blockchainProvider, orderValidatorAddress, orderValidatorRewardAddress, orderValidatorScriptHash, poolAuthAssetName, poolBatchingValidatorHash, poolBatchingValidatorRewardAddress, poolValidatorAddress, poolValidatorRewardAddress, poolValidatorScriptHash, AdaRemainingLiquidity, AdaTotalLiquidity, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK, sTokenUnit, sTokenAdaLpAssetName, sTokenAssetB, NETWORK_ID, orderScriptTxHash, orderScriptTxIndex, poolScriptTxHash, poolScriptTxIndex, poolBatchingScriptTxHash, poolBatchingScriptTxIndex, calculate_amount_out, } from "./setup.js";
-import { BLACKLIST_MINT_HASH, TOKEN_POLICY_ID, blacklistSpendAddr, getValidator, globalRewardAddr, protocolParamsPolicyId, registrySpendAddr, transferLogicCbor, transferLogicHash, transferLogicRewardAddr, validateConfig, } from "./programmableTokens/config.js";
+import { conStr, conStr0, deserializeDatum, deserializeAddress, integer, list, mConStr0, mConStr1, serializeAddressObj, SLOT_CONFIG_NETWORK, stringToHex, unixTimeToEnclosingSlot, } from "@meshsdk/core";
+import { AdaAssetA, authenAddress, authenPolicyId, baseScript, blockchainProvider, orderValidatorAddress, orderValidatorRewardAddress, orderValidatorScriptHash, poolAuthAssetName, poolBatchingValidatorHash, poolBatchingValidatorRewardAddress, poolValidatorAddress, poolValidatorRewardAddress, poolValidatorScriptHash, AdaRemainingLiquidity, AdaTotalLiquidity, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK, NETWORK_ID, orderScriptTxHash, orderScriptTxIndex, poolScriptTxHash, poolScriptTxIndex, poolBatchingScriptTxHash, poolBatchingScriptTxIndex, calculate_amount_out, } from "./setup.js";
+import { TOKEN_POLICY_ID, globalCbor, globalRewardAddr, protocolParamsPolicyId, registrySpendAddr, transferLogicCbor, transferLogicHash, transferLogicRewardAddr, validateConfig, } from "./purrfluid/config.js";
+import { purrfluidAdaLpAssetName, purrfluidAssetB, purrfluidUnit, } from "./purrfluid/dexConfig.js";
+import { fetchWhitelistProofs, uniqueWhitelistUtxos, } from "./purrfluid/whitelistProofs.js";
 validateConfig();
 console.log("pool validator utxos number:", (await blockchainProvider.fetchAddressUTxOs(poolValidatorAddress)).length, "\n");
 console.log("order validator utxos number:", (await blockchainProvider.fetchAddressUTxOs(orderValidatorAddress)).length, "\n");
@@ -31,7 +33,6 @@ const orderReceiverAddr = serializeAddressObj(orderDatum.fields[3], NETWORK_ID);
 const orderUtxoBalance = Number(orderUtxo.output.amount[0].quantity);
 console.log("orderSwapAmount:", orderSwapAmount);
 console.log("orderReceiverAddr:", orderReceiverAddr, "\n");
-const globalCbor = applyParamsToScript(getValidator("programmable_logic_global.programmable_logic_global.withdraw"), [byteString(protocolParamsPolicyId)], "JSON");
 console.log("=== Registry ===");
 const registryUtxos = await blockchainProvider.fetchAddressUTxOs(registrySpendAddr);
 let registryNodeUtxo = null;
@@ -69,9 +70,8 @@ const protocolParamsUtxo = protocolParamsAddressUtxos.find((u) => u.output.amoun
 if (!protocolParamsUtxo) {
     throw new Error("ProtocolParams UTxO not found");
 }
-console.log("\n=== Blacklist Proof ===");
-const blacklistUtxos = await blockchainProvider.fetchAddressUTxOs(blacklistSpendAddr);
-const programmableInputs = [orderUtxo, poolUtxo].sort((a, b) => {
+console.log("\n=== PurrFluid Whitelist Proofs ===");
+const programmableInputs = [orderUtxo, poolUtxo].filter((utxo) => utxo.output.amount.some((asset) => asset.unit === purrfluidUnit)).sort((a, b) => {
     const cmp = a.input.txHash
         .toLowerCase()
         .localeCompare(b.input.txHash.toLowerCase());
@@ -100,53 +100,30 @@ const deriveWitnessKey = (address) => {
         parsed.pubKeyHash ??
         parsed.scriptHash);
 };
-const proofNodes = programmableInputs.map((utxo) => {
+const inputProofKeys = programmableInputs.map((utxo) => {
     const witnessKey = deriveWitnessKey(utxo.output.address);
     if (!witnessKey) {
         throw new Error(`Could not derive sender proof key hash from ${utxo.input.txHash}#${utxo.input.outputIndex}`);
     }
-    const covering = blacklistUtxos.find((blUtxo) => {
-        if (!blUtxo.output.plutusData)
-            return false;
-        try {
-            const hasBlacklistPolicy = blUtxo.output.amount.some((a) => a.unit !== "lovelace" && a.unit.startsWith(BLACKLIST_MINT_HASH));
-            if (!hasBlacklistPolicy)
-                return false;
-            const datum = deserializeDatum(blUtxo.output.plutusData);
-            const key = datum?.fields?.[0]?.bytes ?? "";
-            const next = datum?.fields?.[1]?.bytes ?? "";
-            return key < witnessKey && witnessKey < next;
-        }
-        catch {
-            return false;
-        }
-    });
-    if (!covering) {
-        throw new Error(`No blacklist covering node for key hash: ${witnessKey}`);
-    }
-    return {
-        utxo,
-        witnessKey,
-        covering,
-    };
+    return witnessKey;
 });
-for (const proof of proofNodes) {
-    console.log(`proof witness ${proof.utxo.input.txHash}#${proof.utxo.input.outputIndex}: ${proof.witnessKey}`);
+const outputProofKeys = [
+    deriveWitnessKey(orderReceiverAddr),
+    poolValidatorScriptHash,
+];
+if (outputProofKeys.some((key) => !key)) {
+    throw new Error("Could not derive PurrFluid output whitelist credential");
 }
-const uniqueBlacklistNodes = [];
-const seenBlacklistNodes = new Set();
-for (const proof of proofNodes) {
-    const key = `${proof.covering.input.txHash}#${proof.covering.input.outputIndex}`;
-    if (!seenBlacklistNodes.has(key)) {
-        seenBlacklistNodes.add(key);
-        uniqueBlacklistNodes.push(proof.covering);
-    }
-}
+const proofs = await fetchWhitelistProofs([
+    ...inputProofKeys,
+    ...outputProofKeys,
+]);
+const whitelistNodes = uniqueWhitelistUtxos(proofs);
 const programmableRefs = [
-    ...uniqueBlacklistNodes.map((utxo) => ({
+    ...whitelistNodes.map((utxo) => ({
         txHash: utxo.input.txHash,
         outputIndex: utxo.input.outputIndex,
-        label: "blacklistNode",
+        label: "whitelistNode",
     })),
     {
         txHash: protocolParamsUtxo.input.txHash,
@@ -247,8 +224,8 @@ const sortedRefInputs = [...allRefInputs]
 const registryIndex = sortedRefInputs.findIndex((r) => r.txHash === registryNodeUtxo.input.txHash &&
     r.outputIndex === registryNodeUtxo.input.outputIndex);
 const globalProofIndices = globalPolicyProofEntries.map((entry) => sortedRefInputs.findIndex((r) => r.txHash === entry.txHash && r.outputIndex === entry.outputIndex));
-const proofIndices = proofNodes.map((proof) => sortedRefInputs.findIndex((r) => r.txHash === proof.covering.input.txHash &&
-    r.outputIndex === proof.covering.input.outputIndex));
+const proofIndices = proofs.map((proof) => sortedRefInputs.findIndex((r) => r.txHash === proof.utxo.input.txHash &&
+    r.outputIndex === proof.utxo.input.outputIndex));
 if (registryIndex < 0 ||
     globalProofIndices.some((idx) => idx < 0) ||
     proofIndices.some((idx) => idx < 0)) {
@@ -289,7 +266,7 @@ console.log("updatedSTokenSupply:", updatedSTokenSupply);
 const poolDatum = mConStr0([
     mConStr1([poolBatchingValidatorHash]),
     AdaAssetA,
-    sTokenAssetB,
+    purrfluidAssetB,
     AdaTotalLiquidity,
     updatedAdaTokenSupply,
     updatedSTokenSupply,
@@ -352,14 +329,14 @@ const unsignedTx = await txBuilder
     // order output
     .txOut(orderReceiverAddr, [
     { unit: "lovelace", quantity: String(orderBalance) },
-    { unit: sTokenUnit, quantity: String(assetBAmount) },
+    { unit: purrfluidUnit, quantity: String(assetBAmount) },
 ])
     // pool validator output
     .txOut(poolValidatorAddress, [
     { unit: "lovelace", quantity: String(updatedAdaTokenSupply + 4500000) },
-    { unit: sTokenUnit, quantity: String(updatedSTokenSupply) },
+    { unit: purrfluidUnit, quantity: String(updatedSTokenSupply) },
     {
-        unit: authenPolicyId + sTokenAdaLpAssetName,
+        unit: authenPolicyId + purrfluidAdaLpAssetName,
         quantity: String(AdaRemainingLiquidity),
     },
     { unit: authenPolicyId + poolAuthAssetName, quantity: "1" },

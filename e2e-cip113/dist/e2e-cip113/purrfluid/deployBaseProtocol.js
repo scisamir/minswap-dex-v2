@@ -12,7 +12,6 @@
  */
 import { writeFileSync } from "node:fs";
 import { BlockfrostProvider, MeshTxBuilder, applyParamsToScript, byteString, conStr0, conStr1, integer, resolveScriptHash, serializeAddressObj, serializePlutusScript, scriptAddress, stringToHex, } from "@meshsdk/core";
-import { DEFAULT_V3_COST_MODEL_LIST } from "@meshsdk/common";
 import { blockchainProvider, wallet1, wallet1VK, wallet1Collateral, NETWORK_ID, } from "../setup.js";
 const { default: baseBlueprint } = await import("../../cip113-programmable-tokens/plutus.json", { with: { type: "json" } });
 const blockfrostId = process.env.BLOCKFROST_ID;
@@ -33,23 +32,6 @@ const submitTx = async (label, signedTx) => {
         console.error(`${label} submit failed:`, error);
         throw error;
     }
-};
-const useLivePlutusV3CostModel = async () => {
-    if (!blockfrostId)
-        return;
-    const network = blockfrostId.slice(0, 7);
-    const response = await fetch(`https://cardano-${network}.blockfrost.io/api/v0/epochs/latest/parameters`, { headers: { project_id: blockfrostId } });
-    if (!response.ok) {
-        throw new Error(`Could not fetch current protocol params from Blockfrost: ${response.status}`);
-    }
-    const params = (await response.json());
-    const plutusV3CostModel = params.cost_models?.PlutusV3;
-    if (!plutusV3CostModel) {
-        throw new Error("Blockfrost protocol params did not include PlutusV3 cost model");
-    }
-    const values = Object.values(plutusV3CostModel).map(Number);
-    DEFAULT_V3_COST_MODEL_LIST.splice(0, DEFAULT_V3_COST_MODEL_LIST.length, ...values);
-    console.log("PlutusV3 cost model:   ", `${values.length} params`);
 };
 const outputReference = (txHash, outputIndex) => conStr0([byteString(txHash), integer(outputIndex)]);
 const scriptCredential = (hash) => conStr1([byteString(hash)]);
@@ -108,7 +90,6 @@ const deriveIssuanceTemplate = () => {
 const SENTINEL = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 const walletUtxos = await wallet1.getUtxos();
 const walletAddress = await wallet1.getChangeAddress();
-await useLivePlutusV3CostModel();
 const selectableWalletUtxos = walletUtxos.filter((utxo) => utxo.input.txHash !== wallet1Collateral.input.txHash ||
     utxo.input.outputIndex !== wallet1Collateral.input.outputIndex);
 const seedUtxo = selectableWalletUtxos

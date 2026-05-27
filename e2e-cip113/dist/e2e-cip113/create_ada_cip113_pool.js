@@ -1,39 +1,30 @@
-import { applyParamsToScript, byteString, conStr, conStr0, integer, list, deserializeDatum, mConStr0, mConStr1, } from "@meshsdk/core";
-import { SHA3 } from "sha3";
-import { AdaAssetA, authenPolicyId, blockchainProvider, factoryAddress, factoryAssetName, factoryValidatorScript, AdaTokenSupply, maxInt64, poolAuthAssetName, poolBatchingValidatorHash, poolValidatorAddress, AdaRemainingLiquidity, AdaTotalLiquidity, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK, sTokenSupply, } from "./setup.js";
-import { BLACKLIST_MINT_HASH, TOKEN_ASSET_NAME, TOKEN_POLICY_ID, baseCbor, globalRewardAddr, getValidator, protocolParamsPolicyId, registrySpendAddr, blacklistSpendAddr, transferLogicCbor, transferLogicHash, transferLogicRewardAddr, validateConfig, wallet1SmartAddr, } from "./programmableTokens/config.js";
+import { conStr, conStr0, integer, list, deserializeDatum, mConStr0, mConStr1, stringToHex, } from "@meshsdk/core";
+import { AdaAssetA, authenPolicyId, blockchainProvider, factoryAddress, factoryAssetName, factoryValidatorScript, AdaTokenSupply, maxInt64, poolAuthAssetName, poolBatchingValidatorHash, poolValidatorAddress, poolValidatorScriptHash, AdaRemainingLiquidity, AdaTotalLiquidity, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK, purrfluidPoolSupply, } from "./setup.js";
+import { TOKEN_POLICY_ID, baseCbor, globalCbor, globalRewardAddr, protocolParamsPolicyId, registrySpendAddr, transferLogicCbor, transferLogicHash, transferLogicRewardAddr, validateConfig, wallet1SmartAddr, } from "./purrfluid/config.js";
+import { purrfluidAdaLpAssetName, purrfluidAssetB, purrfluidUnit, } from "./purrfluid/dexConfig.js";
+import { fetchWhitelistProofs, uniqueWhitelistUtxos, } from "./purrfluid/whitelistProofs.js";
 validateConfig();
-const sTokenUnit = TOKEN_POLICY_ID + TOKEN_ASSET_NAME;
-const sTokenAssetB = mConStr0([TOKEN_POLICY_ID, TOKEN_ASSET_NAME]);
-const sha3 = (hex) => {
-    const hash = new SHA3(256);
-    hash.update(hex, "hex");
-    return hash.digest("hex");
-};
-const adaAssetASha256 = sha3("");
-const sTokenAssetBSha256 = sha3(sTokenUnit);
-const sTokenAdaLpAssetName = sha3(adaAssetASha256 + sTokenAssetBSha256);
-const authenScriptTxHash = "b8faf5ee39ec6015644ccf7a6e86a73603ed3816ca570a1554ac419f901f50d7";
+const authenScriptTxHash = "141dbb54692ca37998cbe0d2db9f272aecd3e679403c973436e4b1ea7ee449b0";
 const authenScriptTxIndex = 0;
 const factoryUtxos = await blockchainProvider.fetchAddressUTxOs(factoryAddress);
 const factoryInput = factoryUtxos[factoryUtxos.length - 1];
 if (!factoryInput) {
     throw new Error("Factory input not found");
 }
-const factoryRedeemer = mConStr0([AdaAssetA, sTokenAssetB]);
+const factoryRedeemer = mConStr0([AdaAssetA, purrfluidAssetB]);
 const factoryNftUnit = authenPolicyId + factoryAssetName;
-const factoryDatum1 = mConStr0(["00", sTokenAdaLpAssetName]);
+const factoryDatum1 = mConStr0(["00", purrfluidAdaLpAssetName]);
 const factoryDatum2 = mConStr0([
-    sTokenAdaLpAssetName,
+    purrfluidAdaLpAssetName,
     "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00",
 ]);
 const poolDatum = mConStr0([
     mConStr1([poolBatchingValidatorHash]),
     AdaAssetA,
-    sTokenAssetB,
+    purrfluidAssetB,
     AdaTotalLiquidity,
     AdaTokenSupply,
-    sTokenSupply,
+    purrfluidPoolSupply,
     6,
     6,
     mConStr1([]),
@@ -41,35 +32,36 @@ const poolDatum = mConStr0([
 ]);
 console.log("AdaTotalLiquidity:", AdaTotalLiquidity);
 console.log("AdaTokenSupply:", AdaTokenSupply);
-console.log("sTokenSupply:", sTokenSupply);
-const globalCbor = applyParamsToScript(getValidator("programmable_logic_global.programmable_logic_global.withdraw"), [byteString(protocolParamsPolicyId)], "JSON");
+console.log("purrfluidPoolSupply:", purrfluidPoolSupply);
 console.log("\n=== Registry ===");
 const registryUtxos = await blockchainProvider.fetchAddressUTxOs(registrySpendAddr);
-let registryNodeUtxo = null;
+const registryNodes = [];
 for (const utxo of registryUtxos) {
     if (!utxo.output.plutusData)
         continue;
     try {
         const datum = deserializeDatum(utxo.output.plutusData);
-        if ((datum?.fields?.[0]?.bytes ?? "") === TOKEN_POLICY_ID) {
-            registryNodeUtxo = utxo;
-            console.log(`Registry node: ${utxo.input.txHash}#${utxo.input.outputIndex}`);
-            break;
-        }
+        registryNodes.push({
+            utxo,
+            key: datum?.fields?.[0]?.bytes ?? "",
+            next: datum?.fields?.[1]?.bytes ?? "",
+        });
     }
     catch {
         continue;
     }
 }
+const registryNodeUtxo = registryNodes.find((node) => node.key === TOKEN_POLICY_ID)?.utxo;
 if (!registryNodeUtxo) {
     throw new Error(`Registry node not found for policy: ${TOKEN_POLICY_ID}`);
 }
+console.log(`Registry node: ${registryNodeUtxo.input.txHash}#${registryNodeUtxo.input.outputIndex}`);
 const registryDatum = deserializeDatum(registryNodeUtxo.output.plutusData);
 const registryTransferHash = registryDatum?.fields?.[2]?.fields?.[0]?.bytes ?? "";
 if (registryTransferHash && registryTransferHash !== transferLogicHash) {
     throw new Error(`Registry transfer hash ${registryTransferHash} does not match local transfer logic ${transferLogicHash}`);
 }
-const protocolParamsUnit = protocolParamsPolicyId + "50726f746f636f6c506172616d73";
+const protocolParamsUnit = protocolParamsPolicyId + stringToHex("ProtocolParams");
 const protocolParamsAddresses = await blockchainProvider.fetchAssetAddresses(protocolParamsUnit);
 if (!protocolParamsAddresses.length) {
     throw new Error(`ProtocolParams asset not found on chain. Unit: ${protocolParamsUnit}`);
@@ -81,20 +73,20 @@ if (!protocolParamsUtxo) {
 }
 console.log("\n=== Smart Wallet UTxOs ===");
 const smartWalletUtxos = await blockchainProvider.fetchAddressUTxOs(wallet1SmartAddr);
-const tokenUtxos = smartWalletUtxos.filter((utxo) => utxo.output.amount.some((a) => a.unit === sTokenUnit));
+const tokenUtxos = smartWalletUtxos.filter((utxo) => utxo.output.amount.some((a) => a.unit === purrfluidUnit));
 if (!tokenUtxos.length) {
-    throw new Error(`No sToken UTxOs found at ${wallet1SmartAddr}`);
+    throw new Error(`No PurrFluid UTxOs found at ${wallet1SmartAddr}`);
 }
 const walletTokenBalance = tokenUtxos.reduce((sum, utxo) => {
-    const qty = utxo.output.amount.find((a) => a.unit === sTokenUnit)?.quantity;
+    const qty = utxo.output.amount.find((a) => a.unit === purrfluidUnit)?.quantity;
     return sum + BigInt(qty ?? "0");
 }, 0n);
-console.log("wallet sToken balance:", walletTokenBalance.toString());
-const targetAmount = BigInt(sTokenSupply);
+console.log("wallet PurrFluid balance:", walletTokenBalance.toString());
+const targetAmount = BigInt(purrfluidPoolSupply);
 const selectedUtxos = [];
 let selectedBalance = 0n;
 for (const utxo of tokenUtxos) {
-    const qty = utxo.output.amount.find((a) => a.unit === sTokenUnit)?.quantity;
+    const qty = utxo.output.amount.find((a) => a.unit === purrfluidUnit)?.quantity;
     if (!qty)
         continue;
     selectedUtxos.push(utxo);
@@ -103,63 +95,68 @@ for (const utxo of tokenUtxos) {
         break;
 }
 if (selectedBalance < targetAmount) {
-    throw new Error(`Insufficient sToken balance. Have ${selectedBalance}, need ${targetAmount}`);
+    throw new Error(`Insufficient PurrFluid balance. Have ${selectedBalance}, need ${targetAmount}`);
 }
 const changeAmount = selectedBalance - targetAmount;
+selectedUtxos.sort((a, b) => {
+    const cmp = a.input.txHash
+        .toLowerCase()
+        .localeCompare(b.input.txHash.toLowerCase());
+    return cmp !== 0 ? cmp : a.input.outputIndex - b.input.outputIndex;
+});
 console.log(`Selected ${selectedUtxos.length} UTxO(s), balance=${selectedBalance}, change=${changeAmount}`);
-console.log("\n=== Blacklist Proofs ===");
-const blacklistUtxos = await blockchainProvider.fetchAddressUTxOs(blacklistSpendAddr);
-if (!blacklistUtxos.length) {
-    throw new Error(`No blacklist nodes found at ${blacklistSpendAddr}`);
-}
-const proofs = [];
-for (const spendUtxo of selectedUtxos) {
-    const coveringNode = blacklistUtxos.find((blUtxo) => {
-        if (!blUtxo.output.plutusData)
-            return false;
-        try {
-            const hasBlacklistPolicy = blUtxo.output.amount.some((a) => a.unit !== "lovelace" && a.unit.startsWith(BLACKLIST_MINT_HASH));
-            if (!hasBlacklistPolicy)
-                return false;
-            const datum = deserializeDatum(blUtxo.output.plutusData);
-            const key = datum?.fields?.[0]?.bytes ?? "";
-            const next = datum?.fields?.[1]?.bytes ?? "";
-            return key < wallet1VK && wallet1VK < next;
-        }
-        catch {
-            return false;
-        }
-    });
-    if (!coveringNode) {
-        throw new Error(`No blacklist covering node for key hash: ${wallet1VK}`);
+const selectedInputPolicyIds = selectedUtxos.flatMap((utxo) => utxo.output.amount
+    .filter((asset) => asset.unit !== "lovelace")
+    .map((asset) => asset.unit.slice(0, 56)));
+const globalPolicyIds = [...new Set([authenPolicyId, ...selectedInputPolicyIds])]
+    .sort();
+const globalRegistryProofs = globalPolicyIds.map((policyId) => {
+    const existing = registryNodes.find((node) => node.key === policyId);
+    if (existing) {
+        return { policyId, kind: "exists", utxo: existing.utxo };
     }
-    proofs.push({ spendUtxo, blacklistUtxo: coveringNode });
+    const covering = registryNodes.find((node) => node.key < policyId && policyId < node.next);
+    if (!covering) {
+        throw new Error(`No registry proof node found for policy: ${policyId}`);
+    }
+    return { policyId, kind: "doesNotExist", utxo: covering.utxo };
+});
+console.log("\n=== Global Registry Proofs ===");
+for (const proof of globalRegistryProofs) {
+    console.log(`${proof.kind}: ${proof.policyId} via ${proof.utxo.input.txHash}#${proof.utxo.input.outputIndex}`);
 }
-const uniqueBlacklistUtxos = [];
-const seen = new Set();
-for (const proof of proofs) {
-    const key = `${proof.blacklistUtxo.input.txHash}#${proof.blacklistUtxo.input.outputIndex}`;
-    if (!seen.has(key)) {
-        seen.add(key);
-        uniqueBlacklistUtxos.push(proof.blacklistUtxo);
+console.log("\n=== PurrFluid Whitelist Proofs ===");
+const proofKeys = [
+    ...selectedUtxos.map(() => wallet1VK),
+    poolValidatorScriptHash,
+    ...(changeAmount > 0n ? [wallet1VK] : []),
+];
+const proofs = await fetchWhitelistProofs(proofKeys);
+const whitelistUtxos = uniqueWhitelistUtxos(proofs);
+const registryProofUtxos = [];
+for (const proof of globalRegistryProofs) {
+    const alreadyIncluded = registryProofUtxos.some((utxo) => utxo.input.txHash === proof.utxo.input.txHash &&
+        utxo.input.outputIndex === proof.utxo.input.outputIndex);
+    if (!alreadyIncluded) {
+        registryProofUtxos.push(proof.utxo);
     }
 }
 const txReadOnlyRefs = [
-    ...uniqueBlacklistUtxos.map((u) => ({
+    ...whitelistUtxos.map((u) => ({
         txHash: u.input.txHash,
         outputIndex: u.input.outputIndex,
-        label: "blacklistNode",
+        label: "whitelistNode",
     })),
     {
         txHash: protocolParamsUtxo.input.txHash,
         outputIndex: protocolParamsUtxo.input.outputIndex,
         label: "protocolParams",
     },
-    {
-        txHash: registryNodeUtxo.input.txHash,
-        outputIndex: registryNodeUtxo.input.outputIndex,
+    ...registryProofUtxos.map((utxo) => ({
+        txHash: utxo.input.txHash,
+        outputIndex: utxo.input.outputIndex,
         label: "registryNode",
-    },
+    })),
 ];
 const allReferenceInputs = [
     ...txReadOnlyRefs,
@@ -172,17 +169,22 @@ const allReferenceInputs = [
     const cmp = a.txHash.toLowerCase().localeCompare(b.txHash.toLowerCase());
     return cmp !== 0 ? cmp : a.outputIndex - b.outputIndex;
 });
-const registryIndex = allReferenceInputs.findIndex((r) => r.txHash === registryNodeUtxo.input.txHash &&
-    r.outputIndex === registryNodeUtxo.input.outputIndex);
-if (registryIndex < 0) {
-    throw new Error("Registry reference index not found");
-}
-const proofIndices = proofs.map((proof) => allReferenceInputs.findIndex((r) => r.txHash === proof.blacklistUtxo.input.txHash &&
-    r.outputIndex === proof.blacklistUtxo.input.outputIndex));
+const globalProofRedeemers = globalRegistryProofs.map((proof) => {
+    const registryIndex = allReferenceInputs.findIndex((r) => r.txHash === proof.utxo.input.txHash &&
+        r.outputIndex === proof.utxo.input.outputIndex);
+    if (registryIndex < 0) {
+        throw new Error(`Registry reference index not found: ${proof.policyId}`);
+    }
+    return proof.kind === "exists"
+        ? conStr0([integer(registryIndex)])
+        : conStr(1, [integer(registryIndex)]);
+});
+const proofIndices = proofs.map((proof) => allReferenceInputs.findIndex((r) => r.txHash === proof.utxo.input.txHash &&
+    r.outputIndex === proof.utxo.input.outputIndex));
 if (proofIndices.some((idx) => idx < 0)) {
-    throw new Error("Blacklist proof reference index not found");
+    throw new Error("PurrFluid whitelist proof reference index not found");
 }
-const globalRedeemer = conStr0([list([conStr0([integer(registryIndex)])])]);
+const globalRedeemer = conStr0([list(globalProofRedeemers)]);
 const transferRedeemer = list(proofIndices.map((idx) => conStr(0, [integer(idx)])));
 for (const selectedUtxo of selectedUtxos) {
     txBuilder
@@ -218,7 +220,7 @@ const unsignedTx = await txBuilder
     .mintTxInReference(authenScriptTxHash, authenScriptTxIndex)
     .mintRedeemerValue(mConStr1([]))
     .mintPlutusScriptV3()
-    .mint(String(maxInt64), authenPolicyId, sTokenAdaLpAssetName)
+    .mint(String(maxInt64), authenPolicyId, purrfluidAdaLpAssetName)
     .mintTxInReference(authenScriptTxHash, authenScriptTxIndex)
     .mintRedeemerValue(mConStr1([]))
     .txOut(factoryAddress, [{ unit: factoryNftUnit, quantity: "1" }])
@@ -227,9 +229,9 @@ const unsignedTx = await txBuilder
     .txOutInlineDatumValue(factoryDatum2)
     .txOut(poolValidatorAddress, [
     { unit: "lovelace", quantity: String(AdaTokenSupply + 4500000) },
-    { unit: sTokenUnit, quantity: String(sTokenSupply) },
+    { unit: purrfluidUnit, quantity: String(purrfluidPoolSupply) },
     {
-        unit: authenPolicyId + sTokenAdaLpAssetName,
+        unit: authenPolicyId + purrfluidAdaLpAssetName,
         quantity: String(AdaRemainingLiquidity),
     },
     { unit: authenPolicyId + poolAuthAssetName, quantity: "1" },
@@ -239,7 +241,7 @@ if (changeAmount > 0n) {
     unsignedTx
         .txOut(wallet1SmartAddr, [
         { unit: "lovelace", quantity: "2000000" },
-        { unit: sTokenUnit, quantity: changeAmount.toString() },
+        { unit: purrfluidUnit, quantity: changeAmount.toString() },
     ])
         .txOutInlineDatumValue(conStr0([]), "JSON");
 }

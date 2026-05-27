@@ -1,22 +1,17 @@
-import { MeshTxBuilder, applyParamsToScript, deserializeAddress, deserializeDatum, mConStr1, byteString, conStr, conStr0, integer, list, stringToHex, } from "@meshsdk/core";
-import { blockchainProvider, orderValidatorScript, orderValidatorAddress, wallet1, wallet1Collateral, wallet1VK, orderValidatorRewardAddress, baseScript, userCip113Addr, } from "./setup.js";
-import { BLACKLIST_MINT_HASH, globalRewardAddr, transferLogicCbor, transferLogicHash, transferLogicRewardAddr, blacklistSpendAddr, registrySpendAddr, protocolParamsPolicyId, NETWORK_ID, getValidator, } from "./programmableTokens/config.js";
+import { MeshTxBuilder, deserializeDatum, mConStr1, conStr, conStr0, integer, list, stringToHex, } from "@meshsdk/core";
+import { blockchainProvider, orderValidatorScript, orderValidatorAddress, wallet1, wallet1Collateral, wallet1VK, orderValidatorRewardAddress, orderValidatorScriptHash, baseScript, userCip113Addr, } from "./setup.js";
+import { TOKEN_POLICY_ID, globalCbor, globalRewardAddr, transferLogicCbor, transferLogicHash, transferLogicRewardAddr, registrySpendAddr, protocolParamsPolicyId, NETWORK_ID, validateConfig, } from "./purrfluid/config.js";
+import { purrfluidUnit } from "./purrfluid/dexConfig.js";
+import { fetchWhitelistProofs, uniqueWhitelistUtxos, } from "./purrfluid/whitelistProofs.js";
 console.log("=== Cancel Order By Owner ===");
+validateConfig();
 const orderUtxos = await blockchainProvider.fetchAddressUTxOs(orderValidatorAddress);
 const orderUtxo = orderUtxos[orderUtxos.length - 1];
 if (!orderUtxo) {
     throw new Error("order utxo not found");
 }
 console.log(`Order UTxO: ${orderUtxo.input.txHash}#${orderUtxo.input.outputIndex}`);
-const nonLovelaceUnits = orderUtxo.output.amount
-    .map((a) => a.unit)
-    .filter((u) => u !== "lovelace");
-const programmableUnits = nonLovelaceUnits.filter((u) => u.length >= 56);
-const hasProgrammableTokens = programmableUnits.length > 0;
-const candidatePolicies = Array.from(new Set([
-    ...programmableUnits.map((u) => u.slice(0, 56)),
-]));
-const globalCbor = applyParamsToScript(getValidator("programmable_logic_global.programmable_logic_global.withdraw"), [byteString(protocolParamsPolicyId)], "JSON");
+const hasPurrfluidTokens = orderUtxo.output.amount.some((asset) => asset.unit === purrfluidUnit);
 const protocolParamsUnit = protocolParamsPolicyId + stringToHex("ProtocolParams");
 const protocolParamsAddresses = await blockchainProvider.fetchAssetAddresses(protocolParamsUnit);
 if (!protocolParamsAddresses.length) {
@@ -36,20 +31,17 @@ const sortedRefs = [
         label: "protocolParams",
     },
 ];
-if (hasProgrammableTokens) {
+if (hasPurrfluidTokens) {
     console.log("\n=== Registry ===");
     const registryUtxos = await blockchainProvider.fetchAddressUTxOs(registrySpendAddr);
     let registryNodeUtxo = null;
-    let registryPolicy = "";
     for (const utxo of registryUtxos) {
         if (!utxo.output.plutusData)
             continue;
         try {
             const datum = deserializeDatum(utxo.output.plutusData);
-            const policy = datum?.fields?.[0]?.bytes ?? "";
-            if (candidatePolicies.includes(policy)) {
+            if ((datum?.fields?.[0]?.bytes ?? "") === TOKEN_POLICY_ID) {
                 registryNodeUtxo = utxo;
-                registryPolicy = policy;
                 break;
             }
         }
@@ -58,51 +50,27 @@ if (hasProgrammableTokens) {
         }
     }
     if (!registryNodeUtxo) {
-        throw new Error(`Registry node not found for candidate policies: ${candidatePolicies.join(", ")}`);
+        throw new Error(`Registry node not found for PurrFluid policy: ${TOKEN_POLICY_ID}`);
     }
     const registryDatum = deserializeDatum(registryNodeUtxo.output.plutusData);
     const registryTransferHash = registryDatum?.fields?.[2]?.fields?.[0]?.bytes ?? "";
-    console.log("Registry policy:       ", registryPolicy);
+    console.log("Registry policy:       ", TOKEN_POLICY_ID);
     console.log("Registry transfer hash:", registryTransferHash);
     console.log("Local transfer hash:   ", transferLogicHash);
     if (registryTransferHash && registryTransferHash !== transferLogicHash) {
         throw new Error(`Config mismatch: registry transfer hash is ${registryTransferHash}, local transferLogicHash is ${transferLogicHash}`);
     }
-    console.log("\n=== Blacklist Proof ===");
-    const blacklistUtxos = await blockchainProvider.fetchAddressUTxOs(blacklistSpendAddr);
-    const parsedOrderAddress = deserializeAddress(orderUtxo.output.address);
-    const senderProofKeyHash = parsedOrderAddress.stakeScriptCredentialHash ??
-        parsedOrderAddress.stakeCredentialHash ??
-        parsedOrderAddress.pubKeyHash ??
-        parsedOrderAddress.scriptHash;
-    if (!senderProofKeyHash) {
-        throw new Error("Could not derive sender proof key hash from order UTxO address");
-    }
-    console.log("Sender proof key hash:", senderProofKeyHash);
-    const coveringNode = blacklistUtxos.find((blUtxo) => {
-        if (!blUtxo.output.plutusData)
-            return false;
-        try {
-            const hasBlacklistPolicy = blUtxo.output.amount.some((a) => a.unit !== "lovelace" && a.unit.startsWith(BLACKLIST_MINT_HASH));
-            if (!hasBlacklistPolicy)
-                return false;
-            const datum = deserializeDatum(blUtxo.output.plutusData);
-            const key = datum?.fields?.[0]?.bytes ?? "";
-            const next = datum?.fields?.[1]?.bytes ?? "";
-            return key < senderProofKeyHash && senderProofKeyHash < next;
-        }
-        catch {
-            return false;
-        }
-    });
-    if (!coveringNode) {
-        throw new Error(`No blacklist covering node for key hash: ${senderProofKeyHash}`);
-    }
-    sortedRefs.push({
-        txHash: coveringNode.input.txHash,
-        outputIndex: coveringNode.input.outputIndex,
-        label: "blacklistNode",
-    }, {
+    console.log("\n=== PurrFluid Whitelist Proofs ===");
+    const proofs = await fetchWhitelistProofs([
+        orderValidatorScriptHash,
+        wallet1VK,
+    ]);
+    const whitelistUtxos = uniqueWhitelistUtxos(proofs);
+    sortedRefs.push(...whitelistUtxos.map((utxo) => ({
+        txHash: utxo.input.txHash,
+        outputIndex: utxo.input.outputIndex,
+        label: "whitelistNode",
+    })), {
         txHash: registryNodeUtxo.input.txHash,
         outputIndex: registryNodeUtxo.input.outputIndex,
         label: "registryNode",
@@ -113,16 +81,16 @@ if (hasProgrammableTokens) {
     });
     const registryIndex = sortedRefs.findIndex((r) => r.txHash === registryNodeUtxo.input.txHash &&
         r.outputIndex === registryNodeUtxo.input.outputIndex);
-    const proofIndex = sortedRefs.findIndex((r) => r.txHash === coveringNode.input.txHash &&
-        r.outputIndex === coveringNode.input.outputIndex);
-    if (registryIndex < 0 || proofIndex < 0) {
+    const proofIndices = proofs.map((proof) => sortedRefs.findIndex((r) => r.txHash === proof.utxo.input.txHash &&
+        r.outputIndex === proof.utxo.input.outputIndex));
+    if (registryIndex < 0 || proofIndices.some((index) => index < 0)) {
         throw new Error("Failed to compute reference input indices");
     }
     globalRedeemer = conStr0([list([conStr0([integer(registryIndex)])])]);
-    transferRedeemer = list([conStr(0, [integer(proofIndex)])]);
+    transferRedeemer = list(proofIndices.map((index) => conStr(0, [integer(index)])));
 }
 else {
-    console.log("\n=== No Programmable Tokens In Order UTxO ===");
+    console.log("\n=== No PurrFluid Tokens In Order UTxO ===");
 }
 console.log("\n=== Building Transaction ===");
 const walletUtxos = await wallet1.getUtxos();
@@ -149,7 +117,7 @@ txBuilder
     .withdrawal(globalRewardAddr, "0")
     .withdrawalScript(globalCbor)
     .withdrawalRedeemerValue(globalRedeemer, "JSON");
-if (hasProgrammableTokens) {
+if (hasPurrfluidTokens) {
     txBuilder
         .withdrawalPlutusScriptV3()
         .withdrawal(transferLogicRewardAddr, "0")

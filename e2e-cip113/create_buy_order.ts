@@ -19,8 +19,8 @@ import {
   wallet1Utxos,
   wallet1VK,
   baseHash,
-  sTokenAdaLpAssetName,
 } from "./setup.js";
+import { purrfluidAdaLpAssetName } from "./purrfluid/dexConfig.js";
 
 const orderStep = mConStr0([
   mConStr1([]), // True (a_to_b_direction)
@@ -38,14 +38,14 @@ const orderDatum = mConStr0([
   mConStr0([]),
   mConStr0([
     authenPolicyId, // policy id
-    sTokenAdaLpAssetName, // asset name
+    purrfluidAdaLpAssetName, // asset name
   ]), // changes according to the related liquidity pool
   orderStep,
   6000000, // max_batcher_fee: 6 ADA
   mConStr1([]), // mConStr0([[(Date.now() + (10 * 60 * 1000)), 0]]), // 10 mins exp time; tip 0
 ]);
 
-console.log("sTokenAdaLpAssetName:", sTokenAdaLpAssetName);
+console.log("purrfluidAdaLpAssetName:", purrfluidAdaLpAssetName);
 
 const unsignedTx = await txBuilder
   .txOut(orderValidatorAddress, [

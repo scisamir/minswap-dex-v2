@@ -16,7 +16,6 @@ import {
   byteString,
   conStr0,
 } from "@meshsdk/core";
-import { DEFAULT_V3_COST_MODEL_LIST } from "@meshsdk/common";
 
 import {
   blockchainProvider,
@@ -41,39 +40,6 @@ const blockfrostId = process.env.BLOCKFROST_ID;
 const txProvider = blockfrostId
   ? new BlockfrostProvider(blockfrostId)
   : blockchainProvider;
-
-const useLivePlutusV3CostModel = async () => {
-  if (!blockfrostId) return;
-
-  const network = blockfrostId.slice(0, 7);
-  const response = await fetch(
-    `https://cardano-${network}.blockfrost.io/api/v0/epochs/latest/parameters`,
-    { headers: { project_id: blockfrostId } }
-  );
-  if (!response.ok) {
-    throw new Error(
-      `Could not fetch current protocol params from Blockfrost: ${response.status}`
-    );
-  }
-
-  const params = (await response.json()) as {
-    cost_models?: { PlutusV3?: Record<string, number> };
-  };
-  const plutusV3CostModel = params.cost_models?.PlutusV3;
-  if (!plutusV3CostModel) {
-    throw new Error("Blockfrost protocol params did not include PlutusV3 cost model");
-  }
-
-  const values = Object.values(plutusV3CostModel).map(Number);
-  DEFAULT_V3_COST_MODEL_LIST.splice(
-    0,
-    DEFAULT_V3_COST_MODEL_LIST.length,
-    ...values
-  );
-  console.log("PlutusV3 cost model:   ", `${values.length} params`);
-};
-
-await useLivePlutusV3CostModel();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Use configured seed UTxO — must match whitelistMintCbor params in config.ts

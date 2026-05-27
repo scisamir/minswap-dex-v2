@@ -3,7 +3,7 @@
  *
  * Flow:
  *   Step 1:  deployWhitelist.ts  → initializes the PurrFluid whitelist
- *   Step 1a: insertWhitelist.ts  → whitelists wallet1
+ *   Step 1a: insertWhitelist.ts  → whitelists wallet1 and any DEX credentials
  *   Step 1b: registerStake.ts    → registers transferLogic + adminContract stake creds
  *   Step 2:  registerToken.ts    → registers token and mints PurrFluid supply
  *   Step 3:  spend.ts            → transfers PurrFluid tokens between smart wallets
