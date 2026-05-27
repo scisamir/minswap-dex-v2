@@ -54,7 +54,7 @@ if (hasPurrfluidTokens) {
         throw new Error(`Registry transfer hash ${registeredTransferHash} does not match PurrFluid transfer hash ${transferLogicHash}`);
     }
     const parsedReceiver = deserializeAddress(orderReceiverAddr);
-    const receiverCredential = parsedReceiver.stakeScriptCredentialHash ??
+    const receiverCredential = parsedReceiver.stakeScriptCredentialHash ||
         parsedReceiver.stakeCredentialHash;
     if (!receiverCredential) {
         throw new Error("Could not derive recipient whitelist credential");

@@ -96,9 +96,9 @@ const deriveWitnessKey = (address) => {
     if (address === poolValidatorAddress)
         return poolValidatorScriptHash;
     const parsed = deserializeAddress(address);
-    return (parsed.stakeScriptCredentialHash ??
-        parsed.stakeCredentialHash ??
-        parsed.pubKeyHash ??
+    return (parsed.stakeScriptCredentialHash ||
+        parsed.stakeCredentialHash ||
+        parsed.pubKeyHash ||
         parsed.scriptHash);
 };
 const inputProofKeys = programmableInputs.map((utxo) => {

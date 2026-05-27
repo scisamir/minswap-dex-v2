@@ -28,10 +28,10 @@ Create sell order tx hash: 6e900483031ee7de0b50d36415866376ee16e3f403173a91c0a15
 Cancel order by owner tx hash: e41daa535b7a9009aa2d053ef524fc2049bda8ee5bdcfa162e1fbb68f2b19a54
 
 Create buy order tx hash: 44bce10b52cfec1539535198e1fe07bd051e511e1c187470f16a196fc2044202
-pool batching tx hash:
+pool batching tx hash: c3b93a29350302dd9ad18de736c5e175bdf6d793c563ec181316753c462c021a
 
-Create sell order tx hash:
-pool batching tx hash:
+Create sell order tx hash: b1075247d6ed6c46b3c82a88bdeb6f2224e3acc20f4a8cc388815876eb4a9be3
+pool batching tx hash: d47d39f35ad497e4937aee23d721ed91afe55ecd3319b02fe9ad6e984afb6f67
 
 
 

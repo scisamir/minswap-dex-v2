@@ -120,7 +120,7 @@ if (hasPurrfluidTokens) {
     stakeCredentialHash?: string;
   };
   const receiverCredential =
-    parsedReceiver.stakeScriptCredentialHash ??
+    parsedReceiver.stakeScriptCredentialHash ||
     parsedReceiver.stakeCredentialHash;
   if (!receiverCredential) {
     throw new Error("Could not derive recipient whitelist credential");

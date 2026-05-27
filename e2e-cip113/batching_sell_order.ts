@@ -201,9 +201,9 @@ const deriveWitnessKey = (address: string) => {
     scriptHash?: string;
   };
   return (
-    parsed.stakeScriptCredentialHash ??
-    parsed.stakeCredentialHash ??
-    parsed.pubKeyHash ??
+    parsed.stakeScriptCredentialHash ||
+    parsed.stakeCredentialHash ||
+    parsed.pubKeyHash ||
     parsed.scriptHash
   );
 };
