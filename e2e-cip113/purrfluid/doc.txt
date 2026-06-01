@@ -1,3 +1,30 @@
+-------------------------Mainnet----------------------------
+deployBaseProtocol Bootstrap tx: 6f306334be69d4b8e85a8a58e92d3db45c0dfdbb84bc118c2d8a45b8ef71fc99
+
+deployWhitelist tx: e79444b92e4b6f67e717f8fb884096b0106d2d24d79d67d7a0a830990511e4c0
+
+insertWhitelist tx:
+- 051eef56821ebeece41e8ae1e95deb246658c4863ba7b58b1c3e34d35a0e1584
+- b613ab68c1cd656ab50c61bc2832c52039e51e0a814caad939e4adae89832717
+- 75bea9979e298c82e3a54129039240090339e65f4070d6dc12513a36d24a15b9
+
+registerToken tx: 3dfc9c321b5ad212261bc1570a7238ca60de71792f1290c126a11d6a3099f1b5
+
+spend.ts tx: ea214c622c0ac93d040b4501f84596580f7eb0e977e6dd5ba4aaedb37eef3b04
+
+
+
+
+whitelist tx:        e79444b92e4b6f67e717f8fb884096b0106d2d24d79d67d7a0a830990511e4c0
+whitelistPolicyId:  0786fe48451bacf2797e5f4c0c5ba9ed963b9753cb7c4414f85f642c
+whitelistSpendAddr: addr1wyrcdljgg5d6eune0e05crzm48kevwuh209hc3q5lp0kgtq0t690c
+seed:               0ecd431ab87e1cadf55c1f80dadb594c663baf821b556d8807a1d874efc6bb81#2
+
+
+
+
+
+-------------------------Preview----------------------------
 deployBaseProtocol Bootstrap tx: 00e0111a68bcb516b754905ac20282f8eb0f115d2432f5668398f39cfa68c34d
 
 deployWhitelist tx: ec367c278e58826860e55a9ebd09c288375462371bb9865754a28a6abcac8405

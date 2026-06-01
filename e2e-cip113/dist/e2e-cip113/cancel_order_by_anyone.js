@@ -49,8 +49,7 @@ if (hasPurrfluidTokens) {
     }
     const registryDatum = deserializeDatum(registryNode.output.plutusData);
     const registeredTransferHash = registryDatum?.fields?.[2]?.fields?.[0]?.bytes ?? "";
-    if (registeredTransferHash &&
-        registeredTransferHash !== transferLogicHash) {
+    if (registeredTransferHash && registeredTransferHash !== transferLogicHash) {
         throw new Error(`Registry transfer hash ${registeredTransferHash} does not match PurrFluid transfer hash ${transferLogicHash}`);
     }
     const parsedReceiver = deserializeAddress(orderReceiverAddr);
@@ -86,7 +85,7 @@ if (hasPurrfluidTokens) {
     globalRedeemer = conStr0([list([conStr(0, [integer(registryIndex)])])]);
     transferRedeemer = list(proofIndices.map((index) => conStr(0, [integer(index)])));
 }
-const invalidBefore = unixTimeToEnclosingSlot(Date.now() - 15000, SLOT_CONFIG_NETWORK.preview);
+const invalidBefore = unixTimeToEnclosingSlot(Date.now() - 15000, SLOT_CONFIG_NETWORK.mainnet);
 const txBuilder = new MeshTxBuilder({
     fetcher: blockchainProvider,
     evaluator: blockchainProvider,

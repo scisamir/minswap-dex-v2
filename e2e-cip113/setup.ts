@@ -22,6 +22,7 @@ import {
   UTxO,
   resolveNativeScriptHash,
 } from "@meshsdk/core";
+import { OfflineEvaluatorScalus } from "@meshsdk/core-cst";
 import dotenv from "dotenv";
 dotenv.config();
 import blueprint from "../plutus.json" with { type: "json" };
@@ -29,7 +30,7 @@ import utilBlueprint from "./util_contracts/plutus.json" with { type: "json" };
 import cip113Blueprint from "../cip113-programmable-tokens/plutus.json" with { type: "json" };
 import purrfluidProtocolBootstrap from "./purrfluid/protocolBoostrap.json" with { type: "json" };
 
-const NETWORK_ID = 0;
+const NETWORK_ID: 0 | 1 = 1;
 
 // Setup blockhain provider as Maestro
 // const maestroKey = process.env.MAESTRO_KEY;
@@ -97,14 +98,15 @@ const wallet2 = new MeshWallet({
 const wallet2Address = await wallet2.getChangeAddress();
 const { pubKeyHash: wallet2VK } = deserializeAddress(wallet2Address);
 const wallet2Utxos = await wallet2.getUtxos();
-const wallet2Collateral: UTxO = wallet2Utxos.filter(
-  (utxo) =>
-    Number(utxo.output.amount[0].quantity) >= 7000000 &&
-    utxo.output.amount.length === 1
-)[0];
-if (!wallet2Collateral) {
-  throw new Error("No collateral utxo found 2");
-}
+// const wallet2Collateral: UTxO = wallet2Utxos.filter(
+//   (utxo) =>
+//     Number(utxo.output.amount[0].quantity) >= 7000000 &&
+//     utxo.output.amount.length === 1
+// )[0];
+// if (!wallet2Collateral) {
+//   throw new Error("No collateral utxo found 2");
+// }
+console.log("wallet1 vk:", wallet1VK);
 
 // Setup multisig
 const nativeScript: NativeScript = {
@@ -125,14 +127,17 @@ const { address: multiSigAddress, scriptCbor: multiSigCbor } =
 const multisigHash = resolveNativeScriptHash(nativeScript);
 
 // Create transaction builder
+const txEvaluator =
+  process.env.OFFLINE_EVAL === "1"
+    ? new OfflineEvaluatorScalus(blockchainProvider, "mainnet")
+    : blockchainProvider;
 const txBuilder = new MeshTxBuilder({
   fetcher: blockchainProvider,
   submitter: blockchainProvider,
-  // evaluator: evaluator, // Can also be "evaluator: blockchainProvider,"
-  evaluator: blockchainProvider,
+  evaluator: txEvaluator,
   //   verbose: true,
 });
-txBuilder.setNetwork("preview");
+txBuilder.setNetwork("mainnet");
 
 // constants
 const factoryAssetName = "4d5346";
@@ -194,17 +199,17 @@ const authenValidator = blueprint.validators.filter((v) =>
   v.title.includes("authen_minting_policy.authen_minting_policy.mint")
 );
 // (Mainnet)
-// const dexInitParamTxHash =
-//   "fe4e4783114376697bf8f752262b448fbe3490ce3bea0be98a6f8e33c282cd29"; // change this and below on each dex init
-// const dexInitParamTxIndex = 1;
+const dexInitParamTxHash =
+  "ea214c622c0ac93d040b4501f84596580f7eb0e977e6dd5ba4aaedb37eef3b04"; // change this and below on each dex init
+const dexInitParamTxIndex = 2;
 // (Preprod)
 // const dexInitParamTxHash =
 //   "e68b7a3d147090a551fb62d979d647c364dda41ce3ad511083d66bdb35b2176b"; // change this and below on each dex init
 // const dexInitParamTxIndex = 1;
 // (Preview)
-const dexInitParamTxHash =
-  "5cf28413764400694902c4d08f2970741ca8e344476f36dda667b9d00ac7d1c3"; // change this and below on each dex init
-const dexInitParamTxIndex = 3;
+// const dexInitParamTxHash =
+//   "5cf28413764400694902c4d08f2970741ca8e344476f36dda667b9d00ac7d1c3"; // change this and below on each dex init
+// const dexInitParamTxIndex = 3;
 const authenValidatorScript = applyParamsToScript(
   authenValidator[0].compiledCode,
   [outputReference(dexInitParamTxHash, dexInitParamTxIndex)],
@@ -376,7 +381,7 @@ const AdaTokenA = "";
 const AdaAssetA = mConStr0(["", AdaTokenA]);
 
 // asset supplies
-const AdaTokenSupply = 1500000000;
+const AdaTokenSupply = 50000000;
 const purrfluidPoolSupply = 1500;
 // const AdaTokenSupply = 15000000;
 // const purrfluidPoolSupply = 15;
@@ -406,7 +411,7 @@ console.log("authenPolicyId:", authenPolicyId);
 // console.log("wallet1VK:", wallet1VK);
 
 const lorenzoAddress =
-  "addr_test1qrc2acqmw4d6u72thft9a8eddlwzscrs3ewnquxnzdfefl2rvrppl4x24vc63cyx3ca5r0kyfpde5dvc8xrcq8l3q7zqkxvd3c";
+  "addr1q89h2jxj8wr7u0hw7fdv55v5q8evav05p4tcrheavldr77sv2rhpkt2v62f7e48xz6v4vyes93sfnp3q9p6qxmszghjqj6n8h6";
 const { pubKeyHash: lorenzoVK } = deserializeAddress(lorenzoAddress);
 const lorenzoSmartAddr = serializePlutusScript(
   { code: baseScript, version: "V3" },
@@ -414,7 +419,7 @@ const lorenzoSmartAddr = serializePlutusScript(
   NETWORK_ID
 ).address;
 
-console.log(baseHash, lorenzoVK);
+console.log("LorenzoVK:", lorenzoVK);
 
 const calculate_amount_out = (
   reserve_in: number,
@@ -433,17 +438,17 @@ const calculate_amount_out = (
 
 // -------------Working hashes---------------- (Preview)
 // pool batching ref script
-const poolBatchingScriptTxHash =
-  "133b0c2b754b224f4f6ffff614f631a902aee8c6d10557128c1a7132ead0c5a8";
-const poolBatchingScriptTxIndex = 0;
-// pool ref script
-const poolScriptTxHash =
-  "8d8980e933d52d9eda98a4efcfee564a9c7e40e59530394a75e6cb05c586bb8b";
-const poolScriptTxIndex = 0;
-// order ref script
-const orderScriptTxHash =
-  "45b01e5ac0e5788b1c9d8389da345e252b9e5c26e39a68d5d6360d4e61db9bbb";
-const orderScriptTxIndex = 0;
+// const poolBatchingScriptTxHash =
+//   "133b0c2b754b224f4f6ffff614f631a902aee8c6d10557128c1a7132ead0c5a8";
+// const poolBatchingScriptTxIndex = 0;
+// // pool ref script
+// const poolScriptTxHash =
+//   "8d8980e933d52d9eda98a4efcfee564a9c7e40e59530394a75e6cb05c586bb8b";
+// const poolScriptTxIndex = 0;
+// // order ref script
+// const orderScriptTxHash =
+//   "45b01e5ac0e5788b1c9d8389da345e252b9e5c26e39a68d5d6360d4e61db9bbb";
+// const orderScriptTxIndex = 0;
 
 // -------------Working hashes---------------- (Preprod)
 // pool batching ref script
@@ -460,18 +465,18 @@ const orderScriptTxIndex = 0;
 // const orderScriptTxIndex = 0;
 
 // -------------Working hashes---------------- (Mainnet)
-// // pool batching ref script
-// const poolBatchingScriptTxHash =
-//   "c3e7559ed8c00d25ccaff20b485dd4573843070ae96b25d2ce2b0b65c8c03d8c";
-// const poolBatchingScriptTxIndex = 0;
-// // pool ref script
-// const poolScriptTxHash =
-//   "47e405c8fe12fa891b01497658796be1317dea037647f4361daca39a7f33db82";
-// const poolScriptTxIndex = 0;
-// // order ref script
-// const orderScriptTxHash =
-//   "271af0b304ec2cac2e02f96d0557a71f529a087e8aeb2a22b35ec53256dd366a";
-// const orderScriptTxIndex = 0;
+// pool batching ref script
+const poolBatchingScriptTxHash =
+  "fd0cccb4e0fec4da7e37fbb95ede1a3e5781f85b67995e4f62d5fdd61cb51534";
+const poolBatchingScriptTxIndex = 0;
+// pool ref script
+const poolScriptTxHash =
+  "866d146132dd5745aaa12ca0ce63ec28248984b7fcd5a76301f8b8146c8d81bd";
+const poolScriptTxIndex = 0;
+// order ref script
+const orderScriptTxHash =
+  "8e5b1fda76a15e987ab9ddbdae08e760b20500fd80a50003198042f991343cd3";
+const orderScriptTxIndex = 0;
 
 export {
   blueprint,
@@ -487,7 +492,7 @@ export {
   userCip113Addr,
   // wallet 2
   wallet2,
-  wallet2Collateral,
+  // wallet2Collateral,
   wallet2Utxos,
   wallet2Address,
   wallet2VK,

@@ -48,8 +48,9 @@ import {
 console.log("=== Cancel Expired Order ===");
 validateConfig();
 
-const orderUtxos =
-  await blockchainProvider.fetchAddressUTxOs(orderValidatorAddress);
+const orderUtxos = await blockchainProvider.fetchAddressUTxOs(
+  orderValidatorAddress
+);
 const orderUtxo = orderUtxos[orderUtxos.length - 1];
 if (!orderUtxo || !orderUtxo.output.plutusData) {
   throw new Error("Order UTxO with datum not found");
@@ -100,16 +101,15 @@ if (hasPurrfluidTokens) {
     }
   });
   if (!registryNode?.output.plutusData) {
-    throw new Error(`Registry node not found for PurrFluid: ${TOKEN_POLICY_ID}`);
+    throw new Error(
+      `Registry node not found for PurrFluid: ${TOKEN_POLICY_ID}`
+    );
   }
 
   const registryDatum = deserializeDatum(registryNode.output.plutusData);
   const registeredTransferHash =
     registryDatum?.fields?.[2]?.fields?.[0]?.bytes ?? "";
-  if (
-    registeredTransferHash &&
-    registeredTransferHash !== transferLogicHash
-  ) {
+  if (registeredTransferHash && registeredTransferHash !== transferLogicHash) {
     throw new Error(
       `Registry transfer hash ${registeredTransferHash} does not match PurrFluid transfer hash ${transferLogicHash}`
     );
@@ -171,7 +171,7 @@ if (hasPurrfluidTokens) {
 
 const invalidBefore = unixTimeToEnclosingSlot(
   Date.now() - 15000,
-  SLOT_CONFIG_NETWORK.preview
+  SLOT_CONFIG_NETWORK.mainnet
 );
 const txBuilder = new MeshTxBuilder({
   fetcher: blockchainProvider,

@@ -4,6 +4,26 @@ import { TOKEN_POLICY_ID, globalCbor, globalRewardAddr, protocolParamsPolicyId, 
 import { purrfluidAdaLpAssetName, purrfluidAssetB, purrfluidUnit, } from "./purrfluid/dexConfig.js";
 import { fetchWhitelistProofs, uniqueWhitelistUtxos, } from "./purrfluid/whitelistProofs.js";
 validateConfig();
+const selectAdaOnlyBatcherUtxos = (utxos) => {
+    const selected = utxos
+        .filter((utxo) => utxo.output.address === wallet1Address &&
+        utxo.output.amount.length === 1 &&
+        utxo.output.amount[0]?.unit === "lovelace" &&
+        !(utxo.input.txHash === wallet1Collateral.input.txHash &&
+            utxo.input.outputIndex === wallet1Collateral.input.outputIndex))
+        .sort((a, b) => {
+        const aLovelace = BigInt(a.output.amount[0].quantity);
+        const bLovelace = BigInt(b.output.amount[0].quantity);
+        return aLovelace === bLovelace ? 0 : aLovelace > bLovelace ? -1 : 1;
+    })
+        .slice(0, 3);
+    if (selected.length === 0) {
+        throw new Error("No ADA-only wallet UTxOs found for batching coin selection. Split/consolidate ADA to wallet1 first.");
+    }
+    return selected;
+};
+const batcherUtxos = selectAdaOnlyBatcherUtxos(wallet1Utxos);
+console.log("batcher ADA-only UTxOs:", batcherUtxos.map((utxo) => `${utxo.input.txHash}#${utxo.input.outputIndex}:${utxo.output.amount[0].quantity}`));
 console.log("pool validator utxos number:", (await blockchainProvider.fetchAddressUTxOs(poolValidatorAddress)).length, "\n");
 console.log("order validator utxos number:", (await blockchainProvider.fetchAddressUTxOs(orderValidatorAddress)).length, "\n");
 const poolUtxo = (await blockchainProvider.fetchAddressUTxOs(poolValidatorAddress))[0];
@@ -71,7 +91,9 @@ if (!protocolParamsUtxo) {
     throw new Error("ProtocolParams UTxO not found");
 }
 console.log("\n=== PurrFluid Whitelist Proofs ===");
-const programmableInputs = [orderUtxo, poolUtxo].filter((utxo) => utxo.output.amount.some((asset) => asset.unit === purrfluidUnit)).sort((a, b) => {
+const programmableInputs = [orderUtxo, poolUtxo]
+    .filter((utxo) => utxo.output.amount.some((asset) => asset.unit === purrfluidUnit))
+    .sort((a, b) => {
     const cmp = a.input.txHash
         .toLowerCase()
         .localeCompare(b.input.txHash.toLowerCase());
@@ -196,25 +218,31 @@ const txReadOnlyRefs = [
         label: entry.label,
     })),
 ];
-const allRefInputs = [
+const sortedReadOnlyRefs = [...txReadOnlyRefs]
+    .sort((a, b) => {
+    const cmp = a.txHash.toLowerCase().localeCompare(b.txHash.toLowerCase());
+    return cmp !== 0 ? cmp : a.outputIndex - b.outputIndex;
+})
+    .filter((ref, index, refs) => refs.findIndex((candidate) => candidate.txHash === ref.txHash &&
+    candidate.outputIndex === ref.outputIndex) === index);
+const withdrawalRefInputs = [
     {
         txHash: orderScriptTxHash,
         outputIndex: orderScriptTxIndex,
         label: "orderRefScript",
     },
     {
-        txHash: poolBatchingScriptTxHash,
-        outputIndex: poolBatchingScriptTxIndex,
-        label: "poolBatchingRefScript",
-    },
-    {
         txHash: poolScriptTxHash,
         outputIndex: poolScriptTxIndex,
         label: "poolRefScript",
     },
-    ...txReadOnlyRefs,
+    {
+        txHash: poolBatchingScriptTxHash,
+        outputIndex: poolBatchingScriptTxIndex,
+        label: "poolBatchingRefScript",
+    },
 ];
-const sortedRefInputs = [...allRefInputs]
+const sortedRefInputs = [...txReadOnlyRefs, ...withdrawalRefInputs]
     .sort((a, b) => {
     const cmp = a.txHash.toLowerCase().localeCompare(b.txHash.toLowerCase());
     return cmp !== 0 ? cmp : a.outputIndex - b.outputIndex;
@@ -278,12 +306,12 @@ const poolDatum = mConStr0([
 console.log("oldPoolAdaTokenSupply:", oldPoolAdaTokenSupply);
 console.log("oldPoolSTokenSupply:", oldPoolSTokenSupply);
 console.log("orderBalance:", orderBalance);
-const invalidBefore = unixTimeToEnclosingSlot(Date.now() - 45000, SLOT_CONFIG_NETWORK.preview);
+const invalidBefore = unixTimeToEnclosingSlot(Date.now() - 45000, SLOT_CONFIG_NETWORK.mainnet);
 const invalidAfter = unixTimeToEnclosingSlot(Date.now() + 8 * 60 * 1000, // 8 mins
-SLOT_CONFIG_NETWORK.preview);
+SLOT_CONFIG_NETWORK.mainnet);
 const rMem = 1500000;
 const rSteps = 1000000000;
-for (const ref of sortedRefInputs) {
+for (const ref of sortedReadOnlyRefs) {
     txBuilder.readOnlyTxInReference(ref.txHash, ref.outputIndex);
 }
 const unsignedTx = await txBuilder
@@ -348,9 +376,13 @@ const unsignedTx = await txBuilder
     // transaction must be executed by authorized batcher, wallet1VK
     .requiredSignerHash(wallet1VK)
     .changeAddress(wallet1Address)
-    .selectUtxosFrom(wallet1Utxos)
+    .selectUtxosFrom(batcherUtxos)
     //   .setFee("4108405")
     .complete();
+if (process.env.DRY_RUN === "1") {
+    console.log("Dry run complete; transaction was built but not submitted.");
+    process.exit(0);
+}
 const signedTx = await wallet1.signTx(unsignedTx);
 const txHash = await wallet1.submitTx(signedTx);
 console.log("pool batching tx hash:", txHash);

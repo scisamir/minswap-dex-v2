@@ -17,7 +17,27 @@
 
 
 
-------------------------New Cip113 (Purrfluid)--------------------------------------
+------------------------New Cip113 (Purrfluid Mainnet)--------------------------------------
+Dex initialization tx hash: b0a04c6318fc4339c805c19d925ff96ffb86842efd24026ec5fe1ad0aeaf5c58
+Create cip113 pool tx hash: 78bc353a66429f37b5fb164a3428a2685b569459c979bb32b457f5f88dc97575
+
+Create buy order tx hash: 6143c414d154754ede980b1624711a4339b783f9e5bad39f78a6899426ec24fc
+Cancel order by owner tx hash: bbda6cf0935ed5f3229382c02bb4b79bd0233ef1c3aa352cb675b196c55d4546
+
+Create sell order tx hash: 6743006361e9305995da6a92c58295ebc8dbf7fb95a3debcb7203ad41bcf48a3
+Cancel order by owner tx hash: 18951dbf2b0c1319b1899e2e95ec0f9032751d93cf934107aa6d9c81c62b817f
+
+Create buy order tx hash: e5fbe0aa84782bb554cfa585a67ed8c94a4431839daf63c531865a385bbaa800
+pool batching tx hash: cc7fad34ee53cdbd7c652d65d1846babdd369c8afc21d89b2b6f47f7ba4fd703
+
+Create sell order tx hash: e61fbdc64ffcc1a20f5c90545ca4aa710687b23c3a4c900fe5d4bc01666370f8
+pool batching tx hash: 4dc73525f646ca0120b22c312b8ec2d7cc19fb52a731a60a1f363f4228914c3e
+
+
+
+
+
+------------------------New Cip113 (Purrfluid Preview)--------------------------------------
 Dex initialization tx hash: 759e8574bb0965f5c38ce88d5777a229830685dbcb7fb7f1f505be75f3db273b
 Create cip113 pool tx hash: 0e7d2db5b61deb269006a9a870eded2d86981af4a276f62f12932bb41c650089
 

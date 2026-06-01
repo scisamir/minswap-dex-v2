@@ -111,8 +111,8 @@ if (!isSellOrder) throw new Error("Not a sell order!");
 const orderSwapAmount = Number(orderDatum.fields[6].fields[1].fields[0].int);
 const orderReceiverAddr = serializeAddressObj(orderDatum.fields[3], NETWORK_ID);
 const orderUtxoBalance = Number(
-  orderUtxo.output.amount.find((asset) => asset.unit === "lovelace")?.quantity ??
-    "0"
+  orderUtxo.output.amount.find((asset) => asset.unit === "lovelace")
+    ?.quantity ?? "0"
 );
 console.log("orderSwapAmount:", orderSwapAmount);
 console.log("orderReceiverAddr:", orderReceiverAddr, "\n");
@@ -170,14 +170,16 @@ if (!protocolParamsUtxo) {
 }
 
 console.log("\n=== PurrFluid Whitelist Proofs ===");
-const programmableInputs = [orderUtxo, poolUtxo].filter((utxo) =>
-  utxo.output.amount.some((asset) => asset.unit === purrfluidUnit)
-).sort((a, b) => {
-  const cmp = a.input.txHash
-    .toLowerCase()
-    .localeCompare(b.input.txHash.toLowerCase());
-  return cmp !== 0 ? cmp : a.input.outputIndex - b.input.outputIndex;
-});
+const programmableInputs = [orderUtxo, poolUtxo]
+  .filter((utxo) =>
+    utxo.output.amount.some((asset) => asset.unit === purrfluidUnit)
+  )
+  .sort((a, b) => {
+    const cmp = a.input.txHash
+      .toLowerCase()
+      .localeCompare(b.input.txHash.toLowerCase());
+    return cmp !== 0 ? cmp : a.input.outputIndex - b.input.outputIndex;
+  });
 const programmablePolicies: string[] = [];
 for (const utxo of programmableInputs) {
   for (const asset of utxo.output.amount) {
@@ -258,7 +260,8 @@ const globalPolicyProofEntries = programmablePolicies.map((policyId) => {
       policyId,
       txHash: exactNode.input.txHash,
       outputIndex: exactNode.input.outputIndex,
-      label: policyId === TOKEN_POLICY_ID ? "registryNode" : "registryExactNode",
+      label:
+        policyId === TOKEN_POLICY_ID ? "registryNode" : "registryExactNode",
       proofConstructor: 0,
     };
   }
@@ -312,26 +315,39 @@ const txReadOnlyRefs: RefEntry[] = [
     })),
 ];
 
-const allRefInputs: RefEntry[] = [
+const sortedReadOnlyRefs = [...txReadOnlyRefs]
+  .sort((a, b) => {
+    const cmp = a.txHash.toLowerCase().localeCompare(b.txHash.toLowerCase());
+    return cmp !== 0 ? cmp : a.outputIndex - b.outputIndex;
+  })
+  .filter(
+    (ref, index, refs) =>
+      refs.findIndex(
+        (candidate) =>
+          candidate.txHash === ref.txHash &&
+          candidate.outputIndex === ref.outputIndex
+      ) === index
+  );
+
+const withdrawalRefInputs: RefEntry[] = [
   {
     txHash: orderScriptTxHash,
     outputIndex: orderScriptTxIndex,
     label: "orderRefScript",
   },
   {
-    txHash: poolBatchingScriptTxHash,
-    outputIndex: poolBatchingScriptTxIndex,
-    label: "poolBatchingRefScript",
-  },
-  {
     txHash: poolScriptTxHash,
     outputIndex: poolScriptTxIndex,
     label: "poolRefScript",
   },
-  ...txReadOnlyRefs,
+  {
+    txHash: poolBatchingScriptTxHash,
+    outputIndex: poolBatchingScriptTxIndex,
+    label: "poolBatchingRefScript",
+  },
 ];
 
-const sortedRefInputs = [...allRefInputs]
+const sortedRefInputs = [...txReadOnlyRefs, ...withdrawalRefInputs]
   .sort((a, b) => {
     const cmp = a.txHash.toLowerCase().localeCompare(b.txHash.toLowerCase());
     return cmp !== 0 ? cmp : a.outputIndex - b.outputIndex;
@@ -442,15 +458,15 @@ console.log("orderBalance:", orderBalance);
 
 const invalidBefore = unixTimeToEnclosingSlot(
   Date.now() - 45000,
-  SLOT_CONFIG_NETWORK.preview
+  SLOT_CONFIG_NETWORK.mainnet
 );
 
 const invalidAfter = unixTimeToEnclosingSlot(
   Date.now() + 8 * 60 * 1000,
-  SLOT_CONFIG_NETWORK.preview
+  SLOT_CONFIG_NETWORK.mainnet
 );
 
-for (const ref of sortedRefInputs) {
+for (const ref of sortedReadOnlyRefs) {
   txBuilder.readOnlyTxInReference(ref.txHash, ref.outputIndex);
 }
 

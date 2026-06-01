@@ -30,8 +30,8 @@ if (!isSellOrder)
     throw new Error("Not a sell order!");
 const orderSwapAmount = Number(orderDatum.fields[6].fields[1].fields[0].int);
 const orderReceiverAddr = serializeAddressObj(orderDatum.fields[3], NETWORK_ID);
-const orderUtxoBalance = Number(orderUtxo.output.amount.find((asset) => asset.unit === "lovelace")?.quantity ??
-    "0");
+const orderUtxoBalance = Number(orderUtxo.output.amount.find((asset) => asset.unit === "lovelace")
+    ?.quantity ?? "0");
 console.log("orderSwapAmount:", orderSwapAmount);
 console.log("orderReceiverAddr:", orderReceiverAddr, "\n");
 console.log("=== Registry ===");
@@ -72,7 +72,9 @@ if (!protocolParamsUtxo) {
     throw new Error("ProtocolParams UTxO not found");
 }
 console.log("\n=== PurrFluid Whitelist Proofs ===");
-const programmableInputs = [orderUtxo, poolUtxo].filter((utxo) => utxo.output.amount.some((asset) => asset.unit === purrfluidUnit)).sort((a, b) => {
+const programmableInputs = [orderUtxo, poolUtxo]
+    .filter((utxo) => utxo.output.amount.some((asset) => asset.unit === purrfluidUnit))
+    .sort((a, b) => {
     const cmp = a.input.txHash
         .toLowerCase()
         .localeCompare(b.input.txHash.toLowerCase());
@@ -190,25 +192,31 @@ const txReadOnlyRefs = [
         label: entry.label,
     })),
 ];
-const allRefInputs = [
+const sortedReadOnlyRefs = [...txReadOnlyRefs]
+    .sort((a, b) => {
+    const cmp = a.txHash.toLowerCase().localeCompare(b.txHash.toLowerCase());
+    return cmp !== 0 ? cmp : a.outputIndex - b.outputIndex;
+})
+    .filter((ref, index, refs) => refs.findIndex((candidate) => candidate.txHash === ref.txHash &&
+    candidate.outputIndex === ref.outputIndex) === index);
+const withdrawalRefInputs = [
     {
         txHash: orderScriptTxHash,
         outputIndex: orderScriptTxIndex,
         label: "orderRefScript",
     },
     {
-        txHash: poolBatchingScriptTxHash,
-        outputIndex: poolBatchingScriptTxIndex,
-        label: "poolBatchingRefScript",
-    },
-    {
         txHash: poolScriptTxHash,
         outputIndex: poolScriptTxIndex,
         label: "poolRefScript",
     },
-    ...txReadOnlyRefs,
+    {
+        txHash: poolBatchingScriptTxHash,
+        outputIndex: poolBatchingScriptTxIndex,
+        label: "poolBatchingRefScript",
+    },
 ];
-const sortedRefInputs = [...allRefInputs]
+const sortedRefInputs = [...txReadOnlyRefs, ...withdrawalRefInputs]
     .sort((a, b) => {
     const cmp = a.txHash.toLowerCase().localeCompare(b.txHash.toLowerCase());
     return cmp !== 0 ? cmp : a.outputIndex - b.outputIndex;
@@ -271,9 +279,9 @@ const poolDatum = mConStr0([
 console.log("oldPoolAdaTokenSupply:", oldPoolAdaTokenSupply);
 console.log("oldPoolSTokenSupply:", oldPoolSTokenSupply);
 console.log("orderBalance:", orderBalance);
-const invalidBefore = unixTimeToEnclosingSlot(Date.now() - 45000, SLOT_CONFIG_NETWORK.preview);
-const invalidAfter = unixTimeToEnclosingSlot(Date.now() + 8 * 60 * 1000, SLOT_CONFIG_NETWORK.preview);
-for (const ref of sortedRefInputs) {
+const invalidBefore = unixTimeToEnclosingSlot(Date.now() - 45000, SLOT_CONFIG_NETWORK.mainnet);
+const invalidAfter = unixTimeToEnclosingSlot(Date.now() + 8 * 60 * 1000, SLOT_CONFIG_NETWORK.mainnet);
+for (const ref of sortedReadOnlyRefs) {
     txBuilder.readOnlyTxInReference(ref.txHash, ref.outputIndex);
 }
 const unsignedTx = await txBuilder

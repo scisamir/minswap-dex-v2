@@ -2,7 +2,7 @@
  * insertWhitelist.ts - Step 1a
  *
  * Inserts a stake credential hash into the PurrFluid whitelist.
- * Defaults to wallet1's credential; set PURRFLUID_WHITELIST_KEY for DEX
+ * Set PURRFLUID_WHITELIST_KEY for DEX
  * script credentials such as poolValidatorScriptHash or orderValidatorScriptHash.
  *
  * Prerequisites:

@@ -4,7 +4,7 @@ import { TOKEN_POLICY_ID, baseCbor, globalCbor, globalRewardAddr, protocolParams
 import { purrfluidAdaLpAssetName, purrfluidAssetB, purrfluidUnit, } from "./purrfluid/dexConfig.js";
 import { fetchWhitelistProofs, uniqueWhitelistUtxos, } from "./purrfluid/whitelistProofs.js";
 validateConfig();
-const authenScriptTxHash = "141dbb54692ca37998cbe0d2db9f272aecd3e679403c973436e4b1ea7ee449b0";
+const authenScriptTxHash = "d0932237cb0264454d516e50302fc2a4c2b2ab407f9d2e1c8fa2e3b221926dd9";
 const authenScriptTxIndex = 0;
 const factoryUtxos = await blockchainProvider.fetchAddressUTxOs(factoryAddress);
 const factoryInput = factoryUtxos[factoryUtxos.length - 1];
@@ -108,8 +108,9 @@ console.log(`Selected ${selectedUtxos.length} UTxO(s), balance=${selectedBalance
 const selectedInputPolicyIds = selectedUtxos.flatMap((utxo) => utxo.output.amount
     .filter((asset) => asset.unit !== "lovelace")
     .map((asset) => asset.unit.slice(0, 56)));
-const globalPolicyIds = [...new Set([authenPolicyId, ...selectedInputPolicyIds])]
-    .sort();
+const globalPolicyIds = [
+    ...new Set([authenPolicyId, ...selectedInputPolicyIds]),
+].sort();
 const globalRegistryProofs = globalPolicyIds.map((policyId) => {
     const existing = registryNodes.find((node) => node.key === policyId);
     if (existing) {

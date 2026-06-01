@@ -71,8 +71,8 @@ export const getValidator = getBaseValidator;
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const WHITELIST_SEED_TX_HASH =
-  "1748d195b78c3be99d6c058175b485e4587fad32f5ec0a545c67da9ff6fa228d";
-export const WHITELIST_SEED_TX_INDEX = 1;
+  "0ecd431ab87e1cadf55c1f80dadb594c663baf821b556d8807a1d874efc6bb81";
+export const WHITELIST_SEED_TX_INDEX = 2;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TOKEN CONFIG — TOKEN_POLICY_ID is derived from issuancePolicyId below
