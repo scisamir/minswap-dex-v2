@@ -18,7 +18,7 @@ const txProvider = blockfrostId
     : blockchainProvider;
 const TARGET_KEY_HASH = process.env.PURRFLUID_WHITELIST_KEY;
 if (!TARGET_KEY_HASH) {
-    throw new Error("TARGET_KEY_HASH does not exist!");
+    throw new Error("PURRFLUID_WHITELIST_KEY does not exist!");
 }
 if (TARGET_KEY_HASH.length !== 56) {
     throw new Error(`Whitelist key must be 28 bytes hex: ${TARGET_KEY_HASH}`);
@@ -56,7 +56,10 @@ for (const utxo of whitelistUtxos) {
 }
 const existing = parsedNodes.find((n) => n.node.key === TARGET_KEY_HASH);
 if (existing) {
-    throw new Error(`Key is already whitelisted at ${existing.utxo.input.txHash}#${existing.utxo.input.outputIndex}`);
+    const whitelistIndex = [...parsedNodes]
+        .sort((a, b) => a.node.key.localeCompare(b.node.key))
+        .findIndex((n) => n.node.key === TARGET_KEY_HASH);
+    throw new Error(`Key is already whitelisted at ${existing.utxo.input.txHash}#${existing.utxo.input.outputIndex} (whitelist index: ${whitelistIndex})`);
 }
 let coveringUtxo = null;
 let coveringNode = null;
