@@ -8,7 +8,7 @@
  * Prerequisites:
  *   - deployWhitelist.ts completed
  */
-import { BlockfrostProvider, MeshTxBuilder, byteString, conStr0, conStr1, deserializeDatum, } from "@meshsdk/core";
+import { BlockfrostProvider, MeshTxBuilder, byteString, conStr0, conStr1, deserializeAddress, deserializeDatum, } from "@meshsdk/core";
 import { blockchainProvider, wallet1, wallet1VK, wallet1Collateral, } from "../setup.js";
 import { NETWORK_ID, whitelistMintCbor, whitelistPolicyId, whitelistSpendAddr, whitelistSpendCbor, validateConfig, } from "./config.js";
 validateConfig();
@@ -16,10 +16,15 @@ const blockfrostId = process.env.BLOCKFROST_ID;
 const txProvider = blockfrostId
     ? new BlockfrostProvider(blockfrostId)
     : blockchainProvider;
-const TARGET_KEY_HASH = process.env.PURRFLUID_WHITELIST_KEY;
-if (!TARGET_KEY_HASH) {
-    throw new Error("PURRFLUID_WHITELIST_KEY does not exist!");
+const TARGET_ADDRESS = process.env.WHITELIST_ADDRESS;
+if (!TARGET_ADDRESS) {
+    throw new Error("WHITELIST_ADDRESS does not exist!");
 }
+// const TARGET_KEY_HASH = process.env.PURRFLUID_WHITELIST_KEY;
+// if (!TARGET_KEY_HASH) {
+//   throw new Error("PURRFLUID_WHITELIST_KEY does not exist!");
+// }
+const { pubKeyHash: TARGET_KEY_HASH } = deserializeAddress(TARGET_ADDRESS);
 if (TARGET_KEY_HASH.length !== 56) {
     throw new Error(`Whitelist key must be 28 bytes hex: ${TARGET_KEY_HASH}`);
 }
