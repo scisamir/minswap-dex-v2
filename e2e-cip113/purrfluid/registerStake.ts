@@ -19,6 +19,7 @@ import {
   globalRewardAddr,
   transferLogicRewardAddr,
   adminContractRewardAddr,
+  NETWORK,
   NETWORK_ID,
   validateConfig,
 } from "./config.js";
@@ -99,7 +100,7 @@ for (const account of missingAccounts) {
 const unsignedTx = await txBuilder
   .selectUtxosFrom(walletUtxos)
   .changeAddress(walletAddress)
-  .setNetwork(NETWORK_ID === 0 ? "preview" : "mainnet")
+  .setNetwork(NETWORK)
   .complete();
 
 if (process.env.PURRFLUID_DRY_RUN === "1") {

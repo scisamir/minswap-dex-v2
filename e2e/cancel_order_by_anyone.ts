@@ -1,5 +1,5 @@
-import { mConStr1, mConStr2, SLOT_CONFIG_NETWORK, unixTimeToEnclosingSlot } from "@meshsdk/core";
-import { blockchainProvider, orderValidatorScript, orderValidatorAddress, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK, orderValidatorRewardAddress, orderValidatorScriptHash, orderCanclValidatorRewardAddress, orderCanclValidatorScript } from "./setup.js"
+import { mConStr1, mConStr2, unixTimeToEnclosingSlot } from "@meshsdk/core";
+import { blockchainProvider, orderValidatorScript, orderValidatorAddress, txBuilder, wallet1, wallet1Address, wallet1Collateral, wallet1Utxos, wallet1VK, orderValidatorRewardAddress, orderValidatorScriptHash, orderCanclValidatorRewardAddress, orderCanclValidatorScript, SLOT_CONFIG } from "./setup.js"
 
 console.log("orderValidatorAddress:", orderValidatorAddress);
 const orderUtxo = (await blockchainProvider.fetchAddressUTxOs(orderValidatorAddress))[0];
@@ -10,7 +10,7 @@ console.log("orderUtxo:", orderUtxo);
 
 const invalidBefore = unixTimeToEnclosingSlot(
     (Date.now() - 15000),
-    SLOT_CONFIG_NETWORK.preview
+    SLOT_CONFIG
 )
 
 console.log('\n', "expired time: 1738668722616");

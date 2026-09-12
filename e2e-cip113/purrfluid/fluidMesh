@@ -55,6 +55,16 @@ const BLACKLIST_HEAD_KEY = ""; // empty bytes = head sentinel
 const BLACKLIST_TAIL_KEY =
   "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"; // 28 bytes of ff = tail sentinel
 
+type MeshNetwork = "preview" | "preprod" | "mainnet";
+
+const meshNetworkFromMaestro = (network: string): MeshNetwork => {
+  const value = network.toLowerCase();
+  if (value === "preview" || value === "preprod" || value === "mainnet") {
+    return value;
+  }
+  throw new Error(`Unsupported Maestro network: ${network}`);
+};
+
 /**
  * FluidMesh – CIP-113 v0.3.0 blockchain interactions
  *
@@ -67,14 +77,16 @@ const BLACKLIST_TAIL_KEY =
  */
 class FluidMesh {
   private blockchainProvider: MaestroProvider;
+  private meshNetwork: MeshNetwork;
   private networkId: 0 | 1;
 
   constructor() {
+    this.meshNetwork = meshNetworkFromMaestro(maestroNetwork);
     this.blockchainProvider = new MaestroProvider({
       network: maestroNetwork as MaestroSupportedNetworks,
       apiKey: maestroKey,
     });
-    this.networkId = maestroNetwork === "Preview" ? 0 : 1;
+    this.networkId = this.meshNetwork === "mainnet" ? 1 : 0;
   }
 
   getProvider(): MaestroProvider {
@@ -508,7 +520,7 @@ class FluidMesh {
         .txInCollateral(collateral.txHash, collateral.outputIndex)
         .selectUtxosFrom(utxos)
         .changeAddress(walletAddress)
-        .setNetwork(maestroNetwork as "preview" | "mainnet")
+        .setNetwork(this.meshNetwork)
         .complete();
 
       const unsignedTx = txBuilder.txHex;
@@ -723,7 +735,7 @@ class FluidMesh {
         .txInCollateral(collateral.txHash, collateral.outputIndex)
         .selectUtxosFrom(utxos)
         .changeAddress(walletAddress)
-        .setNetwork(maestroNetwork as "preview" | "mainnet");
+        .setNetwork(this.meshNetwork);
 
       await txBuilder.complete();
 
@@ -1109,7 +1121,7 @@ class FluidMesh {
         .txInCollateral(collateral.txHash, collateral.outputIndex)
         .selectUtxosFrom(utxos)
         .changeAddress(walletAddress)
-        .setNetwork(maestroNetwork as "preview" | "mainnet");
+        .setNetwork(this.meshNetwork);
 
       await txBuilder.complete();
 
@@ -1210,7 +1222,7 @@ class FluidMesh {
         .txInCollateral(collateral.txHash, collateral.outputIndex)
         .selectUtxosFrom(utxos)
         .changeAddress(walletAddress)
-        .setNetwork(maestroNetwork as "preview" | "mainnet");
+        .setNetwork(this.meshNetwork);
 
       await txBuilder.complete();
 
@@ -1322,7 +1334,7 @@ class FluidMesh {
         .txInCollateral(collateral.txHash, collateral.outputIndex)
         .selectUtxosFrom(utxos)
         .changeAddress(walletAddress)
-        .setNetwork(maestroNetwork as "preview" | "mainnet")
+        .setNetwork(this.meshNetwork)
         .complete();
 
       const unsignedTx = txBuilder.txHex;
@@ -1444,7 +1456,7 @@ class FluidMesh {
         .txInCollateral(collateral.txHash, collateral.outputIndex)
         .selectUtxosFrom(utxos)
         .changeAddress(walletAddress)
-        .setNetwork(maestroNetwork as "preview" | "mainnet");
+        .setNetwork(this.meshNetwork);
 
       await txBuilder.complete();
 
@@ -1991,7 +2003,7 @@ class FluidMesh {
         .txInCollateral(collateral.txHash, collateral.outputIndex)
         .selectUtxosFrom(utxos)
         .changeAddress(walletAddress)
-        .setNetwork(maestroNetwork as "preview" | "mainnet")
+        .setNetwork(this.meshNetwork)
         .complete();
 
       const unsignedTx = txBuilder.txHex;

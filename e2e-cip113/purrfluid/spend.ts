@@ -40,6 +40,7 @@ import {
   transferLogicRewardAddr,
   registrySpendAddr,
   protocolParamsPolicyId,
+  NETWORK,
   NETWORK_ID,
   validateConfig,
 } from "./config.js";
@@ -364,7 +365,7 @@ txBuilder
   .changeAddress(walletAddress);
 
 console.log("Completing transaction...");
-txBuilder.setNetwork(NETWORK_ID === 0 ? "preview" : "mainnet");
+txBuilder.setNetwork(NETWORK);
 await txBuilder.complete();
 
 if (process.env.PURRFLUID_DRY_RUN === "1") {

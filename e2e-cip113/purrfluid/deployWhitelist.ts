@@ -25,6 +25,7 @@ import {
 } from "../setup.js";
 
 import {
+  NETWORK,
   NETWORK_ID,
   WHITELIST_SEED_TX_HASH,
   WHITELIST_SEED_TX_INDEX,
@@ -104,7 +105,7 @@ txBuilder
   .selectUtxosFrom(walletUtxos)
   .changeAddress(walletAddress)
   .requiredSignerHash(wallet1VK)
-  .setNetwork(NETWORK_ID === 0 ? "preview" : "mainnet");
+  .setNetwork(NETWORK);
 
 console.log("\nCompleting transaction...");
 await txBuilder.complete();

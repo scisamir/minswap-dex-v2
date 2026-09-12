@@ -23,6 +23,7 @@ import {
   type UTxO,
 } from "@meshsdk/core";
 import dotenv from "dotenv";
+import { NETWORK, NETWORK_ID, PROTOCOL_BOOTSTRAP_FILE_NAME } from "../network.js";
 
 dotenv.config();
 
@@ -30,8 +31,10 @@ const { default: baseBlueprint } = await import(
   "../../cip113-programmable-tokens/plutus.json",
   { with: { type: "json" } }
 );
-
-const NETWORK_ID: 0 | 1 = 1;
+const { default: savedProtocolBootstrap } = await import(
+  `./${PROTOCOL_BOOTSTRAP_FILE_NAME}`,
+  { with: { type: "json" } }
+);
 
 const blockfrostId = process.env.BLOCKFROST_ID;
 if (!blockfrostId) {
@@ -65,22 +68,18 @@ if (!wallet1Collateral) {
   throw new Error("No collateral utxo found for wallet1");
 }
 
+const savedBootstrap = savedProtocolBootstrap as any;
+const expectedAlwaysFailHash = savedBootstrap.alwaysFailHash as string | undefined;
 const bootstrap = {
-  seedTxHash: "4efd88d5dd04e325b0ce301de2b37ebbe78cd7c9a3f0c067cfa0445b3a10a2d2",
-  seedTxIndex: 0,
-  bootstrapTxHash:
-    "6f306334be69d4b8e85a8a58e92d3db45c0dfdbb84bc118c2d8a45b8ef71fc99",
-  alwaysFailHash: "1072d6d773987f1da2173dfb776375466a7eecd1504be0e10361e084",
-  protocolParamsPolicyId:
-    "091a29ca9e411a3b1ddbf2460653e0f5cee655265292b5295ad0c790",
-  issuanceCborHexPolicyId:
-    "14a6bda512d4f824997f2d05522eeff2026aeccb6536cde0fee507cc",
-  globalHash: "c7c9d8ff4d192dff0167e2c49b38d2b3def0dd6aae1ba1de59885d39",
-  baseHash: "44ef9743e1b969f8aa5e6a6363788860069732b5ab5861c80a6ef57c",
-  registryMintPolicyId:
-    "413f739aa1f78841ae5fdc7767e4afbfa6bbca8ef079f6973898bc3e",
-  registrySpendHash:
-    "94016aca5cf00c3bee6560d9bbfe32d5f59052124d5a2ad775e83774",
+  seedTxHash: savedBootstrap.protocolParams.txInput.txHash,
+  seedTxIndex: savedBootstrap.protocolParams.txInput.outputIndex,
+  bootstrapTxHash: savedBootstrap.bootstrapTxHash,
+  protocolParamsPolicyId: savedBootstrap.protocolParams.scriptHash,
+  issuanceCborHexPolicyId: savedBootstrap.issuanceParams.scriptHash,
+  globalHash: savedBootstrap.programmableLogicGlobalPrams.scriptHash,
+  baseHash: savedBootstrap.programmableLogicBaseParams.scriptHash,
+  registryMintPolicyId: savedBootstrap.directoryMintParams.scriptHash,
+  registrySpendHash: savedBootstrap.directorySpendParams.scriptHash,
 };
 
 const getBaseValidator = (title: string): string => {
@@ -105,7 +104,9 @@ const alwaysFailCbor = applyParamsToScript(
   "JSON"
 );
 const alwaysFailHash = resolveScriptHash(alwaysFailCbor, "V3");
-assertHash("alwaysFailHash", alwaysFailHash, bootstrap.alwaysFailHash);
+if (expectedAlwaysFailHash) {
+  assertHash("alwaysFailHash", alwaysFailHash, expectedAlwaysFailHash);
+}
 
 const alwaysFailAddr = serializePlutusScript(
   { code: alwaysFailCbor, version: "V3" } as PlutusScript,
@@ -188,7 +189,7 @@ txBuilder
   .selectUtxosFrom(selectableWalletUtxos)
   .changeAddress(walletAddress)
   .requiredSignerHash(wallet1VK)
-  .setNetwork("mainnet");
+  .setNetwork(NETWORK);
 
 console.log("\nCompleting reference-script transaction...");
 await txBuilder.complete();
@@ -249,13 +250,11 @@ const protocolBootstrap = {
   txHash: refScriptTxHash,
 };
 
-writeFileSync(
-  "purrfluid/protocolBoostrap.json",
-  `${JSON.stringify(protocolBootstrap, null, 2)}\n`
-);
+const protocolBootstrapPath = `purrfluid/${PROTOCOL_BOOTSTRAP_FILE_NAME}`;
+writeFileSync(protocolBootstrapPath, `${JSON.stringify(protocolBootstrap, null, 2)}\n`);
 
 console.log("\n================================");
 console.log("Reference scripts deployed");
 console.log("================================");
 console.log("Reference TX Hash:", refScriptTxHash);
-console.log("protocolBoostrap.json updated");
+console.log(`${PROTOCOL_BOOTSTRAP_FILE_NAME} updated`);

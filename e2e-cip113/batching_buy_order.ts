@@ -8,7 +8,6 @@ import {
   mConStr0,
   mConStr1,
   serializeAddressObj,
-  SLOT_CONFIG_NETWORK,
   stringToHex,
   unixTimeToEnclosingSlot,
 } from "@meshsdk/core";
@@ -43,6 +42,7 @@ import {
   poolBatchingScriptTxHash,
   poolBatchingScriptTxIndex,
   calculate_amount_out,
+  SLOT_CONFIG,
 } from "./setup.js";
 import {
   TOKEN_POLICY_ID,
@@ -498,12 +498,12 @@ console.log("oldPoolSTokenSupply:", oldPoolSTokenSupply);
 console.log("orderBalance:", orderBalance);
 const invalidBefore = unixTimeToEnclosingSlot(
   Date.now() - 45000,
-  SLOT_CONFIG_NETWORK.mainnet
+  SLOT_CONFIG
 );
 
 const invalidAfter = unixTimeToEnclosingSlot(
   Date.now() + 8 * 60 * 1000, // 8 mins
-  SLOT_CONFIG_NETWORK.mainnet
+  SLOT_CONFIG
 );
 
 const rMem = 1500000;

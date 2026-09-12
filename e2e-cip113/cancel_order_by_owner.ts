@@ -10,6 +10,7 @@ import {
 } from "@meshsdk/core";
 
 import {
+  NETWORK,
   blockchainProvider,
   orderValidatorScript,
   orderValidatorAddress,
@@ -214,7 +215,7 @@ txBuilder
   .selectUtxosFrom(walletUtxos)
   .changeAddress(walletAddress);
 
-txBuilder.setNetwork(NETWORK_ID === 0 ? "preview" : "mainnet");
+txBuilder.setNetwork(NETWORK);
 console.log("Completing transaction...");
 await txBuilder.complete();
 

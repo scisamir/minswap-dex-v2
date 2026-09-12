@@ -35,6 +35,7 @@ import {
   adminContractCbor,
   adminContractHash,
   adminContractRewardAddr,
+  NETWORK,
   NETWORK_ID,
   validateConfig,
 } from "./config.js";
@@ -98,7 +99,7 @@ const unsignedTx = await txBuilder
   .selectUtxosFrom(walletUtxos)
   .changeAddress(walletAddress)
   .requiredSignerHash(wallet1VK)
-  .setNetwork(NETWORK_ID === 0 ? "preview" : "mainnet")
+  .setNetwork(NETWORK)
   .complete();
 
 const signedTx = await wallet1.signTx(unsignedTx, true);

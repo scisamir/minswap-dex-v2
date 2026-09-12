@@ -23,9 +23,16 @@ import {
   type PlutusScript,
 } from "@meshsdk/core";
 
-import { wallet1VK, wallet1SK, NETWORK_ID } from "../setup.js";
+import { wallet1VK, wallet1SK } from "../setup.js";
+import { NETWORK, NETWORK_ID } from "../network.js";
 
-export { NETWORK_ID };
+export { NETWORK, NETWORK_ID };
+
+if (NETWORK !== "mainnet") {
+  throw new Error(
+    "programmableTokens/config.ts only has mainnet token/protocol constants. Add network-specific constants before running it on preview or preprod."
+  );
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BLUEPRINT — single file for all validators

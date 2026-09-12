@@ -25,6 +25,13 @@ import {
   wallet1VK,
   wallet1SK,
 } from "../setup.js";
+import { NETWORK } from "../network.js";
+
+if (NETWORK !== "mainnet") {
+  throw new Error(
+    "programmableTokens/dumpRegistry.ts only has mainnet token/protocol constants. Add network-specific constants before running it on preview or preprod."
+  );
+}
 
 const { default: protocolBootstrap } = await import("./protocolBoostrap.json", {
   with: { type: "json" },

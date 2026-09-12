@@ -27,6 +27,7 @@ import {
 } from "../setup.js";
 
 import {
+  NETWORK,
   NETWORK_ID,
   whitelistMintCbor,
   whitelistPolicyId,
@@ -200,7 +201,7 @@ await txBuilder
   .selectUtxosFrom(walletUtxos)
   .changeAddress(walletAddress)
   .requiredSignerHash(wallet1VK)
-  .setNetwork(NETWORK_ID === 0 ? "preview" : "mainnet")
+  .setNetwork(NETWORK)
   .complete();
 
 const signedTx = await wallet1.signTx(txBuilder.txHex, true);

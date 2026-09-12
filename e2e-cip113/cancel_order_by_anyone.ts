@@ -1,6 +1,5 @@
 import {
   MeshTxBuilder,
-  SLOT_CONFIG_NETWORK,
   conStr,
   conStr0,
   deserializeAddress,
@@ -14,7 +13,9 @@ import {
 } from "@meshsdk/core";
 
 import {
+  NETWORK,
   NETWORK_ID,
+  SLOT_CONFIG,
   baseScript,
   blockchainProvider,
   orderCanclValidatorRewardAddress,
@@ -171,7 +172,7 @@ if (hasPurrfluidTokens) {
 
 const invalidBefore = unixTimeToEnclosingSlot(
   Date.now() - 15000,
-  SLOT_CONFIG_NETWORK.mainnet
+  SLOT_CONFIG
 );
 const txBuilder = new MeshTxBuilder({
   fetcher: blockchainProvider,
@@ -224,7 +225,7 @@ const unsignedTx = await txBuilder
   .invalidBefore(invalidBefore)
   .changeAddress(wallet1Address)
   .selectUtxosFrom(wallet1Utxos)
-  .setNetwork(NETWORK_ID === 0 ? "preview" : "mainnet")
+  .setNetwork(NETWORK)
   .complete();
 
 const signedTx = await wallet1.signTx(unsignedTx);

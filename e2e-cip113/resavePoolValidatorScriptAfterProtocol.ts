@@ -16,7 +16,7 @@ import {
   wallet1Collateral,
   wallet1Utxos,
 } from "./setup.js";
-import { NETWORK_ID, protocolParamsPolicyId } from "./purrfluid/config.js";
+import { NETWORK, NETWORK_ID, protocolParamsPolicyId } from "./purrfluid/config.js";
 
 const refHolderScript = applyCborEncoding(
   "5857010100323232323225333002323232323253330073370e900118041baa00113233224a060160026016601800260126ea800458c024c02800cc020008c01c008c01c004c010dd50008a4c26cacae6955ceaab9e5742ae89"
@@ -153,7 +153,7 @@ for (let nonce = startNonce; nonce < startNonce + maxAttempts; nonce += 1) {
     fetcher: blockchainProvider,
     submitter: blockchainProvider,
   });
-  builder.setNetwork("mainnet");
+  builder.setNetwork(NETWORK);
 
   let tx = builder
     .txOut(refHolderAddress, [])

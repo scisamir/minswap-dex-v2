@@ -28,9 +28,19 @@ dotenv.config();
 import blueprint from "../plutus.json" with { type: "json" };
 import utilBlueprint from "./util_contracts/plutus.json" with { type: "json" };
 import cip113Blueprint from "../cip113-programmable-tokens/plutus.json" with { type: "json" };
-import purrfluidProtocolBootstrap from "./purrfluid/protocolBoostrap.json" with { type: "json" };
+import {
+  getNetworkEnv,
+  MAESTRO_NETWORK,
+  NETWORK,
+  NETWORK_ID,
+  PROTOCOL_BOOTSTRAP_FILE_NAME,
+  SLOT_CONFIG,
+} from "./network.js";
 
-const NETWORK_ID: 0 | 1 = 1;
+const { default: purrfluidProtocolBootstrap } = await import(
+  `./purrfluid/${PROTOCOL_BOOTSTRAP_FILE_NAME}`,
+  { with: { type: "json" } }
+);
 
 // Setup blockhain provider as Maestro
 // const maestroKey = process.env.MAESTRO_KEY;
@@ -38,14 +48,14 @@ const NETWORK_ID: 0 | 1 = 1;
 //   throw new Error("MAESTRO_KEY does not exist");
 // }
 // const blockchainProvider = new MaestroProvider({
-//   network: "Preview",
+//   network: MAESTRO_NETWORK,
 //   apiKey: maestroKey,
 // });
 
 // Setup blockhain provider as Blockfrost
-const blockfrostId = process.env.BLOCKFROST_ID;
+const blockfrostId = getNetworkEnv("BLOCKFROST_ID");
 if (!blockfrostId) {
-  throw new Error("BLOCKFROST_ID does not exist");
+  throw new Error(`BLOCKFROST_ID_${NETWORK.toUpperCase()} does not exist`);
 }
 const blockchainProvider = new BlockfrostProvider(blockfrostId);
 
@@ -129,7 +139,7 @@ const multisigHash = resolveNativeScriptHash(nativeScript);
 // Create transaction builder
 const txEvaluator =
   process.env.OFFLINE_EVAL === "1"
-    ? new OfflineEvaluatorScalus(blockchainProvider, "mainnet")
+    ? new OfflineEvaluatorScalus(blockchainProvider, NETWORK)
     : blockchainProvider;
 const txBuilder = new MeshTxBuilder({
   fetcher: blockchainProvider,
@@ -137,7 +147,7 @@ const txBuilder = new MeshTxBuilder({
   evaluator: txEvaluator,
   //   verbose: true,
 });
-txBuilder.setNetwork("mainnet");
+txBuilder.setNetwork(NETWORK);
 
 // constants
 const factoryAssetName = "4d5346";
@@ -198,18 +208,25 @@ if (
 const authenValidator = blueprint.validators.filter((v) =>
   v.title.includes("authen_minting_policy.authen_minting_policy.mint")
 );
-// (Mainnet)
-const dexInitParamTxHash =
-  "ea214c622c0ac93d040b4501f84596580f7eb0e977e6dd5ba4aaedb37eef3b04"; // change this and below on each dex init
-const dexInitParamTxIndex = 2;
-// (Preprod)
-// const dexInitParamTxHash =
-//   "e68b7a3d147090a551fb62d979d647c364dda41ce3ad511083d66bdb35b2176b"; // change this and below on each dex init
-// const dexInitParamTxIndex = 1;
-// (Preview)
-// const dexInitParamTxHash =
-//   "5cf28413764400694902c4d08f2970741ca8e344476f36dda667b9d00ac7d1c3"; // change this and below on each dex init
-// const dexInitParamTxIndex = 3;
+const dexInitParamsByNetwork = {
+  mainnet: {
+    txHash:
+      "ea214c622c0ac93d040b4501f84596580f7eb0e977e6dd5ba4aaedb37eef3b04",
+    txIndex: 2,
+  },
+  preprod: {
+    txHash:
+      "e68b7a3d147090a551fb62d979d647c364dda41ce3ad511083d66bdb35b2176b",
+    txIndex: 1,
+  },
+  preview: {
+    txHash:
+      "5cf28413764400694902c4d08f2970741ca8e344476f36dda667b9d00ac7d1c3",
+    txIndex: 3,
+  },
+} as const;
+const { txHash: dexInitParamTxHash, txIndex: dexInitParamTxIndex } =
+  dexInitParamsByNetwork[NETWORK];
 const authenValidatorScript = applyParamsToScript(
   authenValidator[0].compiledCode,
   [outputReference(dexInitParamTxHash, dexInitParamTxIndex)],
@@ -436,47 +453,68 @@ const calculate_amount_out = (
   return Math.floor(numerator / denominator);
 };
 
-// -------------Working hashes---------------- (Preview)
-// pool batching ref script
-// const poolBatchingScriptTxHash =
-//   "133b0c2b754b224f4f6ffff614f631a902aee8c6d10557128c1a7132ead0c5a8";
-// const poolBatchingScriptTxIndex = 0;
-// // pool ref script
-// const poolScriptTxHash =
-//   "8d8980e933d52d9eda98a4efcfee564a9c7e40e59530394a75e6cb05c586bb8b";
-// const poolScriptTxIndex = 0;
-// // order ref script
-// const orderScriptTxHash =
-//   "45b01e5ac0e5788b1c9d8389da345e252b9e5c26e39a68d5d6360d4e61db9bbb";
-// const orderScriptTxIndex = 0;
-
-// -------------Working hashes---------------- (Preprod)
-// pool batching ref script
-// const poolBatchingScriptTxHash =
-//   "884ff2c9578f34d657566349b1e99b1c9c407c09e45118d1e13efdf84be4775e";
-// const poolBatchingScriptTxIndex = 0;
-// // pool ref script
-// const poolScriptTxHash =
-//   "ffdaec94caa9d50bdc06ce620a35f2ab68519714cdc76ada7c8088d571bb734a";
-// const poolScriptTxIndex = 0;
-// // order ref script
-// const orderScriptTxHash =
-//   "c0ccd1e23f98adb2e7797c5c2232af59df6e16813cf8de3882d60bda6fb8e486";
-// const orderScriptTxIndex = 0;
-
-// -------------Working hashes---------------- (Mainnet)
-// pool batching ref script
-const poolBatchingScriptTxHash =
-  "fd0cccb4e0fec4da7e37fbb95ede1a3e5781f85b67995e4f62d5fdd61cb51534";
-const poolBatchingScriptTxIndex = 0;
-// pool ref script
-const poolScriptTxHash =
-  "866d146132dd5745aaa12ca0ce63ec28248984b7fcd5a76301f8b8146c8d81bd";
-const poolScriptTxIndex = 0;
-// order ref script
-const orderScriptTxHash =
-  "8e5b1fda76a15e987ab9ddbdae08e760b20500fd80a50003198042f991343cd3";
-const orderScriptTxIndex = 0;
+const referenceScriptsByNetwork = {
+  preview: {
+    poolBatching: {
+      txHash:
+        "133b0c2b754b224f4f6ffff614f631a902aee8c6d10557128c1a7132ead0c5a8",
+      txIndex: 0,
+    },
+    pool: {
+      txHash:
+        "8d8980e933d52d9eda98a4efcfee564a9c7e40e59530394a75e6cb05c586bb8b",
+      txIndex: 0,
+    },
+    order: {
+      txHash:
+        "45b01e5ac0e5788b1c9d8389da345e252b9e5c26e39a68d5d6360d4e61db9bbb",
+      txIndex: 0,
+    },
+  },
+  preprod: {
+    poolBatching: {
+      txHash:
+        "884ff2c9578f34d657566349b1e99b1c9c407c09e45118d1e13efdf84be4775e",
+      txIndex: 0,
+    },
+    pool: {
+      txHash:
+        "ffdaec94caa9d50bdc06ce620a35f2ab68519714cdc76ada7c8088d571bb734a",
+      txIndex: 0,
+    },
+    order: {
+      txHash:
+        "c0ccd1e23f98adb2e7797c5c2232af59df6e16813cf8de3882d60bda6fb8e486",
+      txIndex: 0,
+    },
+  },
+  mainnet: {
+    poolBatching: {
+      txHash:
+        "fd0cccb4e0fec4da7e37fbb95ede1a3e5781f85b67995e4f62d5fdd61cb51534",
+      txIndex: 0,
+    },
+    pool: {
+      txHash:
+        "866d146132dd5745aaa12ca0ce63ec28248984b7fcd5a76301f8b8146c8d81bd",
+      txIndex: 0,
+    },
+    order: {
+      txHash:
+        "8e5b1fda76a15e987ab9ddbdae08e760b20500fd80a50003198042f991343cd3",
+      txIndex: 0,
+    },
+  },
+} as const;
+const referenceScripts = referenceScriptsByNetwork[NETWORK];
+const {
+  txHash: poolBatchingScriptTxHash,
+  txIndex: poolBatchingScriptTxIndex,
+} = referenceScripts.poolBatching;
+const { txHash: poolScriptTxHash, txIndex: poolScriptTxIndex } =
+  referenceScripts.pool;
+const { txHash: orderScriptTxHash, txIndex: orderScriptTxIndex } =
+  referenceScripts.order;
 
 export {
   blueprint,
@@ -555,7 +593,9 @@ export {
   // others
   lorenzoVK,
   lorenzoSmartAddr,
+  NETWORK,
   NETWORK_ID,
+  SLOT_CONFIG,
   calculate_amount_out,
   // reference inputs
   poolBatchingScriptTxHash,

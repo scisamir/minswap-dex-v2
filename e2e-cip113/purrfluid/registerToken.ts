@@ -43,6 +43,7 @@ import {
   adminContractHash,
   adminContractRewardAddr,
   wallet1SmartAddr,
+  NETWORK,
   NETWORK_ID,
   protocolParamsPolicyId,
   validateConfig,
@@ -378,7 +379,7 @@ await txBuilder
   .selectUtxosFrom(walletUtxos)
   .changeAddress(walletAddress)
   .requiredSignerHash(wallet1VK)
-  .setNetwork(NETWORK_ID === 0 ? "preview" : "mainnet")
+  .setNetwork(NETWORK)
   .complete();
 
 if (process.env.PURRFLUID_DRY_RUN === "1") {

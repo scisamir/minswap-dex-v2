@@ -29,7 +29,7 @@ import {
   wallet1Collateral,
 } from "../setup.js";
 
-import { NETWORK_ID, getValidator, validateConfig } from "./config.js";
+import { NETWORK, NETWORK_ID, getValidator, validateConfig } from "./config.js";
 
 validateConfig();
 
@@ -123,7 +123,7 @@ txBuilder
   .selectUtxosFrom(walletUtxos)
   .changeAddress(walletAddress)
   .requiredSignerHash(wallet1VK)
-  .setNetwork(NETWORK_ID === 0 ? "preview" : "mainnet");
+  .setNetwork(NETWORK);
 
 console.log("\nCompleting transaction...");
 await txBuilder.complete();

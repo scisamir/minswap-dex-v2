@@ -17,6 +17,7 @@ import { blockchainProvider, wallet1 } from "../setup.js";
 import {
   transferLogicRewardAddr,
   adminContractRewardAddr,
+  NETWORK,
   NETWORK_ID,
   validateConfig,
 } from "./config.js";
@@ -42,7 +43,7 @@ txBuilder.registerStakeCertificate(transferLogicRewardAddr);
 const unsignedTx = await txBuilder
   .selectUtxosFrom(walletUtxos)
   .changeAddress(walletAddress)
-  .setNetwork(NETWORK_ID === 0 ? "preview" : "mainnet")
+  .setNetwork(NETWORK)
   .complete();
 
 const signedTx = await wallet1.signTx(unsignedTx);

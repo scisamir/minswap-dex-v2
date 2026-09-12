@@ -8,7 +8,6 @@ import {
   mConStr0,
   mConStr1,
   serializeAddressObj,
-  SLOT_CONFIG_NETWORK,
   stringToHex,
   unixTimeToEnclosingSlot,
 } from "@meshsdk/core";
@@ -17,6 +16,7 @@ import {
   AdaRemainingLiquidity,
   AdaTotalLiquidity,
   NETWORK_ID,
+  SLOT_CONFIG,
   authenAddress,
   authenPolicyId,
   baseScript,
@@ -458,12 +458,12 @@ console.log("orderBalance:", orderBalance);
 
 const invalidBefore = unixTimeToEnclosingSlot(
   Date.now() - 45000,
-  SLOT_CONFIG_NETWORK.mainnet
+  SLOT_CONFIG
 );
 
 const invalidAfter = unixTimeToEnclosingSlot(
   Date.now() + 8 * 60 * 1000,
-  SLOT_CONFIG_NETWORK.mainnet
+  SLOT_CONFIG
 );
 
 for (const ref of sortedReadOnlyRefs) {

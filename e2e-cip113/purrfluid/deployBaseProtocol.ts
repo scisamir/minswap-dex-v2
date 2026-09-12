@@ -8,7 +8,7 @@
  * 1. bootstrap protocol state
  * 2. save base/global reference scripts
  *
- * Then it rewrites purrfluid/protocolBoostrap.json with the new on-chain hashes.
+ * Then it rewrites the network-selected purrfluid/protocolBoostrap JSON.
  */
 
 import { writeFileSync } from "node:fs";
@@ -34,8 +34,10 @@ import {
   wallet1,
   wallet1VK,
   wallet1Collateral,
+  NETWORK,
   NETWORK_ID,
 } from "../setup.js";
+import { PROTOCOL_BOOTSTRAP_FILE_NAME } from "../network.js";
 
 const { default: baseBlueprint } = await import(
   "../../cip113-programmable-tokens/plutus.json",
@@ -338,7 +340,7 @@ bootstrapTxBuilder
   .selectUtxosFrom(selectableWalletUtxos)
   .changeAddress(walletAddress)
   .requiredSignerHash(wallet1VK)
-  .setNetwork(NETWORK_ID === 0 ? "preview" : "mainnet");
+  .setNetwork(NETWORK);
 
 console.log("\nCompleting bootstrap transaction...");
 await bootstrapTxBuilder.complete();
@@ -387,7 +389,7 @@ refScriptTxBuilder
   .selectUtxosFrom(refScriptWalletUtxos)
   .changeAddress(walletAddress)
   .requiredSignerHash(wallet1VK)
-  .setNetwork(NETWORK_ID === 0 ? "preview" : "mainnet");
+  .setNetwork(NETWORK);
 
 console.log("\nCompleting reference-script transaction...");
 await refScriptTxBuilder.complete();
@@ -434,15 +436,13 @@ const protocolBootstrap = {
   txHash: refScriptTxHash,
 };
 
-writeFileSync(
-  "purrfluid/protocolBoostrap.json",
-  `${JSON.stringify(protocolBootstrap, null, 2)}\n`
-);
+const protocolBootstrapPath = `purrfluid/${PROTOCOL_BOOTSTRAP_FILE_NAME}`;
+writeFileSync(protocolBootstrapPath, `${JSON.stringify(protocolBootstrap, null, 2)}\n`);
 
 console.log("\n================================");
 console.log("CIP-113 base protocol deployed");
 console.log("================================");
 console.log("Bootstrap TX Hash:      ", bootstrapTxHash);
 console.log("Reference TX Hash:      ", refScriptTxHash);
-console.log("protocolBoostrap.json updated");
+console.log(`${PROTOCOL_BOOTSTRAP_FILE_NAME} updated`);
 console.log("\nNext: recompile and run config validateConfig().");

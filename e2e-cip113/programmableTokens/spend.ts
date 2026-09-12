@@ -40,6 +40,7 @@ import {
   transferLogicRewardAddr,
   registrySpendAddr,
   protocolParamsPolicyId,
+  NETWORK,
   NETWORK_ID,
   getValidator,
   validateConfig,
@@ -378,7 +379,7 @@ txBuilder
   .changeAddress(walletAddress);
 
 console.log("Completing transaction...");
-txBuilder.setNetwork(NETWORK_ID === 0 ? "preview" : "mainnet");
+txBuilder.setNetwork(NETWORK);
 await txBuilder.complete();
 
 const signedTx = await wallet1.signTx(txBuilder.txHex, false);

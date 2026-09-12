@@ -24,9 +24,14 @@ import {
   stringToHex,
 } from "@meshsdk/core";
 
-import { wallet1VK, wallet1SK, NETWORK_ID } from "../setup.js";
+import { wallet1VK, wallet1SK } from "../setup.js";
+import {
+  NETWORK,
+  NETWORK_ID,
+  PROTOCOL_BOOTSTRAP_FILE_NAME,
+} from "../network.js";
 
-export { NETWORK_ID };
+export { NETWORK, NETWORK_ID, PROTOCOL_BOOTSTRAP_FILE_NAME };
 
 // Base CIP-113 validators
 const { default: baseBlueprint } = await import(
@@ -40,9 +45,10 @@ const { default: purrfluidBlueprint } = await import(
   { with: { type: "json" } }
 );
 
-const { default: protocolBootstrap } = await import("./protocolBoostrap.json", {
-  with: { type: "json" },
-});
+const { default: protocolBootstrap } = await import(
+  `./${PROTOCOL_BOOTSTRAP_FILE_NAME}`,
+  { with: { type: "json" } }
+);
 
 export { baseBlueprint, purrfluidBlueprint };
 
@@ -82,7 +88,7 @@ export const TOKEN_ASSET_NAME = stringToHex("purrfluid");
 export const TOKEN_SUPPLY = 100_000;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DEPLOYED PROTOCOL — loaded from protocolBoostrap.json
+// DEPLOYED PROTOCOL — loaded from the network-selected protocolBoostrap JSON
 // These are on-chain. Do NOT recompute deployed hashes — use JSON directly.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -292,7 +298,7 @@ export const validateConfig = () => {
         `Config mismatch: local ${label} hash does not match deployed ${label} hash.\n` +
           `  local:    ${localHash}\n` +
           `  deployed: ${deployedHash}\n` +
-          "Use the blueprint that deployed protocolBoostrap.json, or redeploy the CIP-113 base and update config.ts."
+          `Use the blueprint that deployed ${PROTOCOL_BOOTSTRAP_FILE_NAME}, or redeploy the CIP-113 base and update config.ts.`
       );
     }
   };

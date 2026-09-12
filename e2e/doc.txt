@@ -1,4 +1,22 @@
 Dex initialization:
+    8140333d880d80dda2d97d5371688ca92c89cd73cbcf21eac13788381c6d706a
+
+
+Pool Creation:
+    cd5a07d1b3e03a8f01dfbaee904c26a8d777a0bce34c0ed3364526efed98b415
+
+REGISTER STAKE CREDENTIALS:
+    ed46251b13c73e68abbaac05150a68e4d845b5984a4c10a368115428c876cc89
+
+Pool Batching:
+    Create Order:
+        ac80317cacd681b48c1effe5b0fa68e267e565b16e4af79594462e26db62243a
+    Process Order:
+        66a61f70d3f53d1d3d091c5caae0733e144527267e691bde73162fdf2e7210f3
+
+
+
+Dex initialization:
     3e50b4397f1a28f5989cf85940f0138837cff35f636c31f974d9b601dd5d4016
 
 
